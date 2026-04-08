@@ -48,12 +48,17 @@ function runSetup() {
     console.error("Error: HA_CONFIG is not set in .env");
     process.exit(1);
   }
-  const target = resolve("custom_components/polr_tmdb");
-  const link = resolve(`${HA_CONFIG}/custom_components/polr_tmdb`);
+  // HA_COMPONENT_LINK_TARGET / HA_WWW_LINK_TARGET let you override symlink targets
+  // when HA runs in Docker with the project mounted at a different path inside the
+  // container (e.g. /config/tmdb_dev) vs the host path.
+  const componentTarget = env.HA_COMPONENT_LINK_TARGET ?? resolve("custom_components/polr_tmdb");
+  const componentLink = resolve(`${HA_CONFIG}/custom_components/polr_tmdb`);
+  try { rmSync(componentLink, { recursive: true, force: true }); } catch {}
+  symlinkSync(componentTarget, componentLink);
+  console.log(`Symlink created: ${componentLink} → ${componentTarget}`);
 
-  try { rmSync(link, { recursive: true, force: true }); } catch {}
-  symlinkSync(target, link);
-  console.log(`Symlink created: ${link} → ${target}`);
+  // www/polr_tmdb is NOT symlinked — HA's HTTP server doesn't follow symlinks
+  // for /local/ serving. Run `npm run build` to write card.js/panel.js directly.
 }
 
 // ---------------------------------------------------------------------------

@@ -8,7 +8,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import CONF_API_KEY, CONF_LANGUAGE, DOMAIN, TMDB_API_BASE
+from .const import CONF_API_KEY, CONF_LANGUAGE, CONF_REGION, DOMAIN, TMDB_API_BASE
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -16,6 +16,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_API_KEY): str,
         vol.Optional(CONF_LANGUAGE, default="en"): str,
+        vol.Optional(CONF_REGION, default="US"): str,
     }
 )
 
@@ -49,9 +50,10 @@ class TmdbShowsConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if not errors:
                 await self.async_set_unique_id(DOMAIN)
                 self._abort_if_unique_id_configured()
+                region = user_input.get(CONF_REGION, "US").strip().upper()
                 return self.async_create_entry(
                     title="TMDB Shows & Movies",
-                    data={CONF_API_KEY: api_key, CONF_LANGUAGE: language},
+                    data={CONF_API_KEY: api_key, CONF_LANGUAGE: language, CONF_REGION: region},
                 )
 
         return self.async_show_form(

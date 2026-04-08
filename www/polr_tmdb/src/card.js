@@ -382,6 +382,36 @@ class TmdbShowsCard extends LitElement {
               <textarea class="notes" placeholder="Your notes…" .value=${item.notes || ""}
                 @change=${(e) => { this._updateItem(item.item_id, { notes: e.target.value }); this._detail = { ...item, notes: e.target.value }; }}></textarea>
 
+              ${item.watch_providers && Object.keys(item.watch_providers).length > 0 ? html`
+                <div class="section-label">Where to Watch</div>
+                <div class="providers">
+                  ${item.watch_providers.flatrate?.length ? html`
+                    <div class="provider-row">
+                      <span class="provider-type">Stream</span>
+                      ${item.watch_providers.flatrate.map((p) => html`
+                        <img class="provider-logo" src="https://image.tmdb.org/t/p/original${p.logo_path}" title="${p.provider_name}" alt="${p.provider_name}" />
+                      `)}
+                    </div>
+                  ` : nothing}
+                  ${item.watch_providers.rent?.length ? html`
+                    <div class="provider-row">
+                      <span class="provider-type">Rent</span>
+                      ${item.watch_providers.rent.map((p) => html`
+                        <img class="provider-logo" src="https://image.tmdb.org/t/p/original${p.logo_path}" title="${p.provider_name}" alt="${p.provider_name}" />
+                      `)}
+                    </div>
+                  ` : nothing}
+                  ${item.watch_providers.buy?.length ? html`
+                    <div class="provider-row">
+                      <span class="provider-type">Buy</span>
+                      ${item.watch_providers.buy.map((p) => html`
+                        <img class="provider-logo" src="https://image.tmdb.org/t/p/original${p.logo_path}" title="${p.provider_name}" alt="${p.provider_name}" />
+                      `)}
+                    </div>
+                  ` : nothing}
+                </div>
+              ` : nothing}
+
               ${item.trailer_url ? html`
                 <div class="dialog-footer">
                   <a class="trailer-btn" href="${item.trailer_url}" target="_blank" rel="noopener">▶ Trailer</a>
@@ -497,6 +527,10 @@ class TmdbShowsCard extends LitElement {
     .star-on { color: #ffd600; }
     .rating-num { margin-left: 8px; font-size: 0.8rem; color: var(--secondary-text-color); }
     .notes { width: 100%; box-sizing: border-box; padding: 6px 8px; border-radius: 5px; border: 1px solid var(--divider-color, #555); background: transparent; color: var(--primary-text-color); font-size: 0.82rem; resize: vertical; min-height: 54px; font-family: inherit; }
+    .providers { display: flex; flex-direction: column; gap: 5px; margin-bottom: 4px; }
+    .provider-row { display: flex; align-items: center; gap: 6px; }
+    .provider-type { font-size: 0.7rem; color: var(--secondary-text-color); min-width: 38px; text-transform: uppercase; letter-spacing: 0.4px; }
+    .provider-logo { width: 30px; height: 30px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
     .dialog-footer { display: flex; margin-top: 12px; }
     .trailer-btn { padding: 5px 14px; border-radius: 16px; background: #c62828; color: #fff; text-decoration: none; font-size: 0.8rem; }
     @media (max-width: 420px) { .dialog-content { flex-direction: column; } .dialog-poster { width: 70px; } }
