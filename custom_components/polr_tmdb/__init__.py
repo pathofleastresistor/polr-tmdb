@@ -95,7 +95,7 @@ async def _async_register_panel(hass: HomeAssistant) -> None:
         config={
             "_panel_custom": {
                 "name": "polr-tmdb-panel",
-                "module_url": "/local/polr_tmdb/panel.js?v=6",
+                "module_url": "/local/polr_tmdb/panel.js?v=7",
                 "embed_iframe": False,
                 "trust_external": False,
             }

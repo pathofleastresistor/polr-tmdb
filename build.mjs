@@ -1,10 +1,12 @@
 import esbuild from "esbuild";
 import { argv } from "process";
-import { readFileSync, writeFileSync, existsSync, symlinkSync, rmSync } from "fs";
-import { resolve } from "path";
+import { readFileSync, writeFileSync, existsSync, symlinkSync, rmSync, readdirSync } from "fs";
+import { resolve, extname, basename } from "path";
+import { execSync } from "child_process";
 
 const setup = argv.includes("--setup");
 const watch = argv.includes("--watch");
+const screenshots = argv.includes("--screenshots");
 
 // Load .env if present (copy .env.example to .env and set your local paths)
 const env = {};
@@ -19,6 +21,24 @@ const HA_CONFIG = env.HA_CONFIG ?? process.env.HA_CONFIG ?? "../ha-config/homeas
 const HA_WWW = env.HA_WWW ?? process.env.HA_WWW ?? `${HA_CONFIG}/www/polr_tmdb`;
 const RESOURCES_FILE = env.HA_RESOURCES_FILE ?? process.env.HA_RESOURCES_FILE ?? `${HA_CONFIG}/.storage/lovelace_resources`;
 const INIT_PY = "custom_components/polr_tmdb/__init__.py";
+
+// ---------------------------------------------------------------------------
+// Screenshots: compress images in screenshots/ to jpg, max 1200px wide
+// ---------------------------------------------------------------------------
+
+async function compressScreenshots() {
+  const { default: sharp } = await import("sharp");
+  const files = readdirSync("screenshots").filter(f => /\.(png|jpg|jpeg)$/i.test(f));
+  for (const file of files) {
+    const input = `screenshots/${file}`;
+    const output = `screenshots/${basename(file, extname(file))}.jpg`;
+    await sharp(input).resize({ width: 1200, withoutEnlargement: true }).jpeg({ quality: 85 }).toFile(output + ".tmp");
+    rmSync(input, { force: true });
+    execSync(`mv ${output}.tmp ${output}`);
+    const size = readFileSync(output).length;
+    console.log(`  ${file} → ${basename(output)} (${(size / 1024).toFixed(0)}KB)`);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Setup: create custom_components symlink in HA config
@@ -80,11 +100,14 @@ const sharedConfig = {
 
 const builds = [
   { entryPoints: ["www/polr_tmdb/src/card.js"],  outfile: `${HA_WWW}/card.js` },
+  { entryPoints: ["www/polr_tmdb/src/card.js"],  outfile: "card.js" }, // root copy for HACS
   { entryPoints: ["www/polr_tmdb/src/panel.js"], outfile: `${HA_WWW}/panel.js` },
 ];
 
 if (setup) {
   runSetup();
+} else if (screenshots) {
+  await compressScreenshots();
 } else if (watch) {
   const contexts = await Promise.all(
     builds.map((b) => esbuild.context({ ...sharedConfig, ...b }))
