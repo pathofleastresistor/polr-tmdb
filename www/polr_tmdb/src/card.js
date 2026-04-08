@@ -151,7 +151,7 @@ class TmdbShowsCard extends LitElement {
 
   get _newItems() {
     return this._items
-      .filter((i) => i.status !== "watched" && this._hasNewEpisode(i))
+      .filter((i) => i.status !== "watched" && i.status !== "want_to_watch" && this._hasNewEpisode(i))
       .sort((a, b) => a.title.localeCompare(b.title));
   }
 
