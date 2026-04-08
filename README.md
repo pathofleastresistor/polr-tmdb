@@ -3,9 +3,9 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![GitHub release](https://img.shields.io/github/release/pathofleastresistor/polr-tmdb.svg)](https://github.com/pathofleastresistor/polr-tmdb/releases)
 
-![Lovelace Card](screenshots/card.jpg)
+<img src="screenshots/card.jpg" width="600" alt="Lovelace Card">
 
-![Side Panel](screenshots/sidepanel.jpg)
+<img src="screenshots/sidepanel.jpg" width="350" alt="Side Panel">
 
 A custom Home Assistant integration and Lovelace card for managing your household watchlist using [The Movie Database (TMDB)](https://www.themoviedb.org/).
 
