@@ -24,6 +24,10 @@ function fmtDate(dateStr) {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w300";
+const TMDB_IMAGE_ORIGIN = "https://image.tmdb.org";
+function tmdbImg(url) {
+  return typeof url === "string" && url.startsWith(TMDB_IMAGE_ORIGIN) ? url : null;
+}
 
 class TmdbShowsPanel extends LitElement {
   static properties = {
@@ -222,8 +226,8 @@ class TmdbShowsPanel extends LitElement {
   _renderPoster(item) {
     return html`
       <button class="poster-card" @click=${() => (this._detail = item)}>
-        ${item.poster_path
-          ? html`<img class="poster-img" src="${item.poster_path}" alt="${item.title}" loading="lazy" />`
+        ${tmdbImg(item.poster_path)
+          ? html`<img class="poster-img" src="${tmdbImg(item.poster_path)}" alt="${item.title}" loading="lazy" />`
           : html`<div class="poster-placeholder"><ha-icon icon="${MEDIA_ICONS[item.media_type] || "mdi:movie"}"></ha-icon></div>`}
         <span class="status-badge" style="background:${STATUS_COLORS[item.status]}">${STATUS_LABELS[item.status]}</span>
         ${item.vote_average ? html`<span class="rating-badge">★ ${item.vote_average}</span>` : nothing}
@@ -403,15 +407,15 @@ class TmdbShowsPanel extends LitElement {
     return html`
       <ha-dialog open @closed=${() => (this._detail = null)} .heading=${item.title}>
         <div class="dlg-body">
-          ${item.backdrop_path
-            ? html`<div class="dlg-backdrop" style="background-image:url('${item.backdrop_path}')"></div>`
+          ${tmdbImg(item.backdrop_path)
+            ? html`<div class="dlg-backdrop" style="background-image:url('${tmdbImg(item.backdrop_path)}')"></div>`
             : nothing}
           <button class="dlg-delete-btn" title="Remove from watchlist" @click=${() => this._removeItem(item.item_id)}>
             <ha-icon icon="mdi:delete-outline"></ha-icon>
           </button>
           <div class="dlg-content">
             <div class="dlg-left">
-              ${item.poster_path ? html`<img class="dlg-poster" src="${item.poster_path}" alt="${item.title}" />` : nothing}
+              ${tmdbImg(item.poster_path) ? html`<img class="dlg-poster" src="${tmdbImg(item.poster_path)}" alt="${item.title}" />` : nothing}
             </div>
             <div class="dlg-right">
               <div class="dlg-meta">

@@ -1,8 +1,7 @@
 import esbuild from "esbuild";
 import { argv } from "process";
-import { readFileSync, writeFileSync, existsSync, symlinkSync, rmSync, readdirSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, symlinkSync, rmSync, readdirSync, renameSync } from "fs";
 import { resolve, extname, basename } from "path";
-import { execSync } from "child_process";
 
 const setup = argv.includes("--setup");
 const watch = argv.includes("--watch");
@@ -34,7 +33,7 @@ async function compressScreenshots() {
     const output = `screenshots/${basename(file, extname(file))}.jpg`;
     await sharp(input).resize({ width: 1200, withoutEnlargement: true }).jpeg({ quality: 85 }).toFile(output + ".tmp");
     rmSync(input, { force: true });
-    execSync(`mv ${output}.tmp ${output}`);
+    renameSync(`${output}.tmp`, output);
     const size = readFileSync(output).length;
     console.log(`  ${file} → ${basename(output)} (${(size / 1024).toFixed(0)}KB)`);
   }

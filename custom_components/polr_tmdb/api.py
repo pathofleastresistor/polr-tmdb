@@ -67,7 +67,7 @@ class TmdbShowsApi:
                 if resp.status == 401:
                     raise TmdbShowsApiError("Invalid TMDB API key (401)")
                 if resp.status == 429:
-                    retry_after = int(resp.headers.get("Retry-After", "5"))
+                    retry_after = min(int(resp.headers.get("Retry-After", "5")), 60)
                     _LOGGER.warning("TMDB rate-limited, sleeping %ds", retry_after)
                     await asyncio.sleep(retry_after)
                     return await self._get(path, params)

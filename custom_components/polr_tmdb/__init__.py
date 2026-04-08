@@ -303,8 +303,9 @@ def _async_register_websocket(hass: HomeAssistant) -> None:
             results = await api.async_search(msg["query"], msg["media_type"])
             connection.send_message(websocket_api.result_message(msg["id"], results))
         except Exception as err:
+            _LOGGER.exception("search_failed: %s", err)
             connection.send_message(
-                websocket_api.error_message(msg["id"], "search_failed", str(err))
+                websocket_api.error_message(msg["id"], "search_failed", "Search request failed")
             )
 
     @websocket_api.websocket_command({
@@ -323,8 +324,9 @@ def _async_register_websocket(hass: HomeAssistant) -> None:
             item = await _do_add(hass, msg["tmdb_id"], msg["media_type"], msg.get("status", STATUS_WANT_TO_WATCH))
             connection.send_message(websocket_api.result_message(msg["id"], item))
         except Exception as err:
+            _LOGGER.exception("add_failed: %s", err)
             connection.send_message(
-                websocket_api.error_message(msg["id"], "add_failed", str(err))
+                websocket_api.error_message(msg["id"], "add_failed", "Add request failed")
             )
 
     @websocket_api.websocket_command({
@@ -345,7 +347,7 @@ def _async_register_websocket(hass: HomeAssistant) -> None:
         vol.Required("item_id"): str,
         vol.Optional("status"): vol.In(ALL_STATUSES),
         vol.Optional("rating"): vol.All(int, vol.Range(min=1, max=10)),
-        vol.Optional("notes"): str,
+        vol.Optional("notes"): vol.All(str, vol.Length(max=10000)),
         vol.Optional("current_season"): int,
         vol.Optional("current_episode"): int,
     })
@@ -388,8 +390,9 @@ def _async_register_websocket(hass: HomeAssistant) -> None:
             ]
             connection.send_message(websocket_api.result_message(msg["id"], episodes))
         except Exception as err:
+            _LOGGER.exception("season_fetch_failed: %s", err)
             connection.send_message(
-                websocket_api.error_message(msg["id"], "season_fetch_failed", str(err))
+                websocket_api.error_message(msg["id"], "season_fetch_failed", "Season fetch failed")
             )
 
     websocket_api.async_register_command(hass, ws_items)
