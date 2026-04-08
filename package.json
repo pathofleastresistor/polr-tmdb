@@ -7,10 +7,12 @@
     "setup": "node build.mjs --setup",
     "build": "node build.mjs",
     "watch": "node build.mjs --watch",
+    "screenshots": "node build.mjs --screenshots",
     "test": "/usr/bin/python3 -m pytest"
   },
   "devDependencies": {
     "esbuild": "^0.20.0",
-    "lit": "^3.1.0"
+    "lit": "^3.1.0",
+    "sharp": "^0.34.5"
   }
 }
