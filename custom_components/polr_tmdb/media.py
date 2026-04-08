@@ -67,6 +67,10 @@ class WatchlistItem:
     last_episode_to_air: dict | None = None
     next_episode_to_air: dict | None = None
 
+    # Watch providers by region (from TMDB watch/providers)
+    # { flatrate: [{provider_id, provider_name, logo_path}], rent: [...], buy: [...] }
+    watch_providers: dict | None = None
+
     # -----------------------------------------------------------------------
     # Serialisation
     # -----------------------------------------------------------------------
@@ -97,6 +101,7 @@ class WatchlistItem:
             "last_episode_to_air": self.last_episode_to_air,
             "next_episode_to_air": self.next_episode_to_air,
             "has_new_episode": self.has_new_episode,
+            "watch_providers": self.watch_providers,
         }
 
     @classmethod
@@ -125,6 +130,7 @@ class WatchlistItem:
             current_episode=data.get("current_episode"),
             last_episode_to_air=data.get("last_episode_to_air"),
             next_episode_to_air=data.get("next_episode_to_air"),
+            watch_providers=data.get("watch_providers"),
         )
 
     def to_entity_attributes(self) -> dict[str, Any]:
@@ -152,6 +158,7 @@ class WatchlistItem:
             "last_episode_to_air": self.last_episode_to_air,
             "next_episode_to_air": self.next_episode_to_air,
             "has_new_episode": self.has_new_episode,
+            "watch_providers": self.watch_providers,
         }
 
     @property
@@ -177,7 +184,7 @@ class WatchlistItem:
     # Metadata update from TMDB API response
     # -----------------------------------------------------------------------
 
-    def update_from_tmdb(self, data: dict[str, Any]) -> None:
+    def update_from_tmdb(self, data: dict[str, Any], region: str = "US") -> None:
         """Merge fresh TMDB detail response into this item."""
         is_tv = self.media_type == MEDIA_TYPE_TV
 
@@ -224,5 +231,24 @@ class WatchlistItem:
         trailer = _extract_trailer(videos)
         if trailer:
             self.trailer_url = trailer
+
+        # Extract watch providers for the configured region
+        providers_data = data.get("watch/providers", {})
+        region_data = providers_data.get("results", {}).get(region, {})
+        if region_data:
+            self.watch_providers = {
+                k: [
+                    {
+                        "provider_id": p.get("provider_id"),
+                        "provider_name": p.get("provider_name"),
+                        "logo_path": p.get("logo_path"),
+                    }
+                    for p in v
+                ]
+                for k, v in region_data.items()
+                if k in ("flatrate", "rent", "buy") and isinstance(v, list)
+            }
+        else:
+            self.watch_providers = None
 
         self.updated_at = _now_iso()

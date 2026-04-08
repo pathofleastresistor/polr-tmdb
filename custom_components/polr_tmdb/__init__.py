@@ -18,6 +18,7 @@ from .const import (
     ALL_STATUSES,
     CONF_API_KEY,
     CONF_LANGUAGE,
+    CONF_REGION,
     DOMAIN,
     EVENT_TMDB_SHOWS_UPDATED,
     MEDIA_TYPE_TV,
@@ -36,8 +37,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up TMDB Shows & Movies from a config entry."""
     api_key: str = entry.data[CONF_API_KEY]
     language: str = entry.data.get(CONF_LANGUAGE, "en")
+    region: str = entry.data.get(CONF_REGION, "US")
 
-    api = TmdbShowsApi(hass, api_key, language)
+    api = TmdbShowsApi(hass, api_key, language, region)
     store = WatchlistStore(hass)
     await store.async_load()
 
@@ -95,7 +97,7 @@ async def _async_register_panel(hass: HomeAssistant) -> None:
         config={
             "_panel_custom": {
                 "name": "polr-tmdb-panel",
-                "module_url": "/local/polr_tmdb/panel.js?v=7",
+                "module_url": "/local/polr_tmdb/panel.js?v=9",
                 "embed_iframe": False,
                 "trust_external": False,
             }
@@ -152,7 +154,7 @@ async def _do_add(hass: HomeAssistant, tmdb_id: int, media_type: str, status: st
             tmdb_data = await api.async_get_tv_details(tmdb_id)
         else:
             tmdb_data = await api.async_get_movie_details(tmdb_id)
-        await store.async_update_metadata(item.item_id, tmdb_data)
+        await store.async_update_metadata(item.item_id, tmdb_data, region=api.get_region())
     except Exception:
         _LOGGER.warning("Could not fetch initial metadata for tmdb_id=%s", tmdb_id)
 

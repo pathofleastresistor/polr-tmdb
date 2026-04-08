@@ -449,6 +449,36 @@ class TmdbShowsPanel extends LitElement {
                 @change=${(e) => { this._updateItem(item.item_id, { notes: e.target.value }); this._detail = { ...item, notes: e.target.value }; }}
               ></ha-textfield>
 
+              ${item.watch_providers && Object.keys(item.watch_providers).length > 0 ? html`
+                <div class="section-label">Where to Watch</div>
+                <div class="providers">
+                  ${item.watch_providers.flatrate?.length ? html`
+                    <div class="provider-row">
+                      <span class="provider-type">Stream</span>
+                      ${item.watch_providers.flatrate.map((p) => html`
+                        <img class="provider-logo" src="https://image.tmdb.org/t/p/original${p.logo_path}" title="${p.provider_name}" alt="${p.provider_name}" />
+                      `)}
+                    </div>
+                  ` : nothing}
+                  ${item.watch_providers.rent?.length ? html`
+                    <div class="provider-row">
+                      <span class="provider-type">Rent</span>
+                      ${item.watch_providers.rent.map((p) => html`
+                        <img class="provider-logo" src="https://image.tmdb.org/t/p/original${p.logo_path}" title="${p.provider_name}" alt="${p.provider_name}" />
+                      `)}
+                    </div>
+                  ` : nothing}
+                  ${item.watch_providers.buy?.length ? html`
+                    <div class="provider-row">
+                      <span class="provider-type">Buy</span>
+                      ${item.watch_providers.buy.map((p) => html`
+                        <img class="provider-logo" src="https://image.tmdb.org/t/p/original${p.logo_path}" title="${p.provider_name}" alt="${p.provider_name}" />
+                      `)}
+                    </div>
+                  ` : nothing}
+                </div>
+              ` : nothing}
+
               ${item.trailer_url ? html`
                 <div class="dlg-footer">
                   <ha-button @click=${() => window.open(item.trailer_url, "_blank")}>
@@ -599,6 +629,10 @@ class TmdbShowsPanel extends LitElement {
     .dlg-right ha-textfield { width: 100%; }
     .dlg-meta { font-size: 0.82rem; color: var(--secondary-text-color); margin-bottom: 8px; }
     .dlg-overview { font-size: 0.84rem; line-height: 1.5; max-height: 80px; overflow-y: auto; margin: 0 0 4px; }
+    .providers { display: flex; flex-direction: column; gap: 5px; margin-bottom: 4px; }
+    .provider-row { display: flex; align-items: center; gap: 6px; }
+    .provider-type { font-size: 0.7rem; color: var(--secondary-text-color); min-width: 38px; text-transform: uppercase; letter-spacing: 0.4px; }
+    .provider-logo { width: 32px; height: 32px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
     .dlg-footer { display: flex; gap: 8px; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--divider-color); align-items: center; }
     .remove-btn { --primary-color: var(--error-color, #c62828); margin-left: auto; }
 

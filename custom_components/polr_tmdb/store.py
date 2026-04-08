@@ -107,11 +107,11 @@ class WatchlistStore:
         _LOGGER.debug("Updated watchlist item %s: %s", item_id, kwargs)
         return item
 
-    async def async_update_metadata(self, item_id: str, tmdb_data: dict) -> WatchlistItem | None:
+    async def async_update_metadata(self, item_id: str, tmdb_data: dict, region: str = "US") -> WatchlistItem | None:
         """Apply fresh TMDB API response to an existing item."""
         item = self._items.get(item_id)
         if item is None:
             return None
-        item.update_from_tmdb(tmdb_data)
+        item.update_from_tmdb(tmdb_data, region=region)
         await self.async_save()
         return item

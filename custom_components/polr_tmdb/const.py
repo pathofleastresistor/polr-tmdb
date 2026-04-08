@@ -11,6 +11,7 @@ TMDB_BACKDROP_BASE = "https://image.tmdb.org/t/p/w1280"
 
 CONF_API_KEY = "api_key"
 CONF_LANGUAGE = "language"
+CONF_REGION = "region"
 
 # Watch statuses
 STATUS_WANT_TO_WATCH = "want_to_watch"

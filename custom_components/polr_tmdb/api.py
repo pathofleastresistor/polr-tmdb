@@ -42,10 +42,11 @@ class TmdbShowsApi:
     Authentication is via api_key query parameter (TMDB v3).
     """
 
-    def __init__(self, hass: HomeAssistant, api_key: str, language: str = "en") -> None:
+    def __init__(self, hass: HomeAssistant, api_key: str, language: str = "en", region: str = "US") -> None:
         self._hass = hass
         self._api_key = api_key
         self._language = language
+        self._region = region
         self._image_config: dict | None = None
 
     def _session(self) -> aiohttp.ClientSession:
@@ -98,18 +99,22 @@ class TmdbShowsApi:
         return results
 
     async def async_get_movie_details(self, tmdb_id: int) -> dict[str, Any]:
-        """Fetch full movie details including videos (for trailer extraction)."""
+        """Fetch full movie details including videos and watch providers."""
         return await self._get(
             f"/movie/{tmdb_id}",
-            {"append_to_response": "videos"},
+            {"append_to_response": "videos,watch/providers"},
         )
 
     async def async_get_tv_details(self, tmdb_id: int) -> dict[str, Any]:
-        """Fetch full TV show details including videos."""
+        """Fetch full TV show details including videos and watch providers."""
         return await self._get(
             f"/tv/{tmdb_id}",
-            {"append_to_response": "videos"},
+            {"append_to_response": "videos,watch/providers"},
         )
+
+    def get_region(self) -> str:
+        """Return the configured region code."""
+        return self._region
 
     async def async_get_image_config(self) -> dict[str, Any]:
         """Fetch (and cache) TMDB image configuration."""

@@ -49,7 +49,7 @@ class TmdbShowsCoordinator(DataUpdateCoordinator):
                 else:
                     data = await self.api.async_get_movie_details(item.tmdb_id)
 
-                await self.store.async_update_metadata(item.item_id, data)
+                await self.store.async_update_metadata(item.item_id, data, region=self.api.get_region())
 
             except TmdbShowsApiError as err:
                 _LOGGER.warning(
