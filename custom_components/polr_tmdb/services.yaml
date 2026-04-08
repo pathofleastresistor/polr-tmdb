@@ -1,0 +1,116 @@
+add_to_watchlist:
+  name: Add to Watchlist
+  description: Add a movie or TV show to the watchlist by TMDB ID.
+  fields:
+    tmdb_id:
+      name: TMDB ID
+      description: The numeric TMDB ID of the movie or show.
+      required: true
+      example: 1396
+      selector:
+        number:
+          min: 1
+          mode: box
+    media_type:
+      name: Media Type
+      description: Whether this is a movie or TV show.
+      required: true
+      example: tv
+      selector:
+        select:
+          options:
+            - movie
+            - tv
+    status:
+      name: Status
+      description: Initial watch status (defaults to want_to_watch).
+      required: false
+      example: want_to_watch
+      selector:
+        select:
+          options:
+            - want_to_watch
+            - watching
+            - watched
+            - paused
+
+remove_from_watchlist:
+  name: Remove from Watchlist
+  description: Remove an item from the watchlist by its internal item_id.
+  fields:
+    item_id:
+      name: Item ID
+      description: The internal UUID of the watchlist item (available as sensor attribute).
+      required: true
+      example: "abc123"
+      selector:
+        text:
+
+update_status:
+  name: Update Watch Status
+  description: Change the watch status of a watchlist item.
+  fields:
+    item_id:
+      name: Item ID
+      description: The internal UUID of the watchlist item.
+      required: true
+      selector:
+        text:
+    status:
+      name: Status
+      description: New watch status.
+      required: true
+      selector:
+        select:
+          options:
+            - want_to_watch
+            - watching
+            - watched
+            - paused
+
+update_progress:
+  name: Update TV Progress
+  description: Update the current season and episode for a TV show.
+  fields:
+    item_id:
+      name: Item ID
+      description: The internal UUID of the watchlist item.
+      required: true
+      selector:
+        text:
+    season:
+      name: Season
+      description: Current season number.
+      required: false
+      selector:
+        number:
+          min: 1
+          mode: box
+    episode:
+      name: Episode
+      description: Current episode number.
+      required: false
+      selector:
+        number:
+          min: 1
+          mode: box
+
+update_rating:
+  name: Update Personal Rating
+  description: Set a personal 1-10 rating for a watchlist item.
+  fields:
+    item_id:
+      name: Item ID
+      description: The internal UUID of the watchlist item.
+      required: true
+      selector:
+        text:
+    rating:
+      name: Rating
+      description: Personal rating from 1 to 10.
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 10
+          mode: slider

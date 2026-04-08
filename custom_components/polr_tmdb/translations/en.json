@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "TMDB Shows & Movies",
+        "description": "Enter your TMDB API key. Get one at https://www.themoviedb.org/settings/api",
+        "data": {
+          "api_key": "API Key",
+          "language": "Language (e.g. en, es, fr)"
+        }
+      }
+    },
+    "error": {
+      "invalid_api_key": "Invalid API key — please check your TMDB credentials.",
+      "cannot_connect": "Unable to connect to TMDB. Check your internet connection."
+    },
+    "abort": {
+      "already_configured": "TMDB Shows & Movies is already configured."
+    }
+  }
+}

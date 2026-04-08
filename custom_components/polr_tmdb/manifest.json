@@ -1,0 +1,12 @@
+{
+  "domain": "polr_tmdb",
+  "name": "PoLR TMDB",
+  "config_flow": true,
+  "documentation": "https://github.com/pathofleastresistor/polr-tmdb",
+  "issue_tracker": "https://github.com/pathofleastresistor/polr-tmdb/issues",
+  "codeowners": ["@pathofleastresistor"],
+  "version": "1.0.0",
+  "iot_class": "cloud_polling",
+  "integration_type": "hub",
+  "requirements": []
+}

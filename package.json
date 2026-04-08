@@ -1,0 +1,16 @@
+{
+  "name": "polr-tmdb",
+  "version": "1.0.0",
+  "description": "PoLR TMDB — HACS integration + Lovelace card",
+  "private": true,
+  "scripts": {
+    "setup": "node build.mjs --setup",
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "test": "/usr/bin/python3 -m pytest"
+  },
+  "devDependencies": {
+    "esbuild": "^0.20.0",
+    "lit": "^3.1.0"
+  }
+}

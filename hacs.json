@@ -1,0 +1,6 @@
+{
+  "name": "PoLR TMDB",
+  "render_readme": true,
+  "homeassistant": "2024.1.0",
+  "filename": "card.js"
+}
