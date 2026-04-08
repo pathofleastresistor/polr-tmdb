@@ -80,6 +80,7 @@ const sharedConfig = {
 
 const builds = [
   { entryPoints: ["www/polr_tmdb/src/card.js"],  outfile: `${HA_WWW}/card.js` },
+  { entryPoints: ["www/polr_tmdb/src/card.js"],  outfile: "card.js" }, // root copy for HACS
   { entryPoints: ["www/polr_tmdb/src/panel.js"], outfile: `${HA_WWW}/panel.js` },
 ];
 
