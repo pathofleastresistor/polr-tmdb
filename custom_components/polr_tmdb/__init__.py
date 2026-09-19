@@ -56,11 +56,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "sensors": {},
     }
 
-    # Set up sensor platform first so async_add_entities is registered
+    # Set up sensor platform first so async_add_entities is registered.
+    # Sensors are seeded from the store, so they come up with their last
+    # known metadata without waiting on TMDB.
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
-    # Initial coordinator refresh (populates TMDB metadata for existing items)
-    await coordinator.async_config_entry_first_refresh()
 
     # Register panel
     await _async_register_panel(hass)
@@ -70,6 +69,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Register WebSocket commands
     _async_register_websocket(hass)
+
+    # Refresh TMDB metadata in the background instead of awaiting it: the
+    # coordinator walks the watchlist one item at a time with a rate-limit
+    # sleep between requests, which takes ~10s for a modest list. Nothing in
+    # setup needs it -- the store is already loaded from disk, so everything
+    # works off cached metadata until the refresh lands.
+    entry.async_create_background_task(
+        hass,
+        coordinator.async_refresh(),
+        name=f"{DOMAIN}_initial_refresh",
+    )
 
     return True
 
@@ -165,7 +175,9 @@ async def _do_add(hass: HomeAssistant, tmdb_id: int, media_type: str, status: st
     if async_add_entities:
         sensor = TmdbShowsSensor(coordinator, item)
         hass.data[DOMAIN]["sensors"][item.item_id] = sensor
-        async_add_entities([sensor], update_before_add=True)
+        # No update_before_add: metadata was just fetched above, and for a
+        # CoordinatorEntity the pre-add update only queues a full refresh.
+        async_add_entities([sensor])
 
     item_dict = item.to_dict()
     hass.bus.async_fire(EVENT_TMDB_SHOWS_UPDATED, {"action": "add", "item": item_dict})
