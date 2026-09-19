@@ -30,12 +30,14 @@ async def async_setup_entry(
     # Store the callback so __init__.py can dynamically add new sensors
     data["async_add_entities"] = async_add_entities
 
-    # Create sensors for items already in the store
+    # Create sensors for items already in the store. No update_before_add:
+    # each sensor is built from its stored item, and for a CoordinatorEntity
+    # the pre-add update only queues a second full pass over the watchlist.
     entities = [
         TmdbShowsSensor(coordinator, item)
         for item in store.get_all()
     ]
-    async_add_entities(entities, update_before_add=True)
+    async_add_entities(entities)
 
 
 class TmdbShowsSensor(CoordinatorEntity, SensorEntity):
