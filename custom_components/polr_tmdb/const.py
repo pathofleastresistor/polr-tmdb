@@ -18,8 +18,27 @@ STATUS_WANT_TO_WATCH = "want_to_watch"
 STATUS_WATCHING = "watching"
 STATUS_WATCHED = "watched"
 STATUS_PAUSED = "paused"
+# Discovery statuses: a show proposed to the household (by a person or an
+# automation) that nobody has committed to yet, and one they've turned down.
+STATUS_SUGGESTED = "suggested"
+STATUS_DISMISSED = "dismissed"
 
-ALL_STATUSES = [STATUS_WANT_TO_WATCH, STATUS_WATCHING, STATUS_WATCHED, STATUS_PAUSED]
+ALL_STATUSES = [
+    STATUS_WANT_TO_WATCH,
+    STATUS_WATCHING,
+    STATUS_WATCHED,
+    STATUS_PAUSED,
+    STATUS_SUGGESTED,
+    STATUS_DISMISSED,
+]
+
+# Statuses that mean the household has taken the show on. A suggestion never
+# overwrites one of these.
+COMMITTED_STATUSES = [STATUS_WANT_TO_WATCH, STATUS_WATCHING, STATUS_WATCHED, STATUS_PAUSED]
+
+# Limits on free-text fields written by services
+MAX_REASON_LENGTH = 500
+MAX_URL_LENGTH = 2000
 
 # Media types
 MEDIA_TYPE_MOVIE = "movie"

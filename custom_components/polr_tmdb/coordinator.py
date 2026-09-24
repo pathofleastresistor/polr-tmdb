@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import TmdbShowsApi, TmdbShowsApiError
-from .const import COORDINATOR_UPDATE_INTERVAL_HOURS, DOMAIN, MEDIA_TYPE_TV
+from .const import COORDINATOR_UPDATE_INTERVAL_HOURS, DOMAIN, MEDIA_TYPE_TV, STATUS_DISMISSED
 from .store import WatchlistStore
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,6 +43,10 @@ class TmdbShowsCoordinator(DataUpdateCoordinator):
         errors: list[str] = []
 
         for item in items:
+            # Dismissed suggestions are kept only so they aren't suggested
+            # again; their metadata doesn't need refreshing every day.
+            if item.status == STATUS_DISMISSED:
+                continue
             try:
                 if item.media_type == MEDIA_TYPE_TV:
                     data = await self.api.async_get_tv_details(item.tmdb_id)

@@ -7,7 +7,10 @@ from typing import Any
 
 from .const import (
     MEDIA_TYPE_TV,
+    STATUS_DISMISSED,
+    STATUS_SUGGESTED,
     STATUS_WANT_TO_WATCH,
+    STATUS_WATCHED,
     TMDB_BACKDROP_BASE,
     TMDB_IMAGE_BASE,
 )
@@ -71,6 +74,16 @@ class WatchlistItem:
     # { flatrate: [{provider_id, provider_name, logo_path}], rent: [...], buy: [...] }
     watch_providers: dict | None = None
 
+    # Discovery: why this show was suggested, when, and by whom.
+    # { reason: str, suggested_at: ISO str, source: str }
+    suggestion: dict | None = None
+    # Why the household passed on a suggestion ("too stressful", "too slow"...)
+    dismiss_reason: str = ""
+
+    # Link that opens this title in the streaming app on an Android/Google TV.
+    # { service: "HBO Max", url: "https://play.hbomax.com/show/..." }
+    watch_link: dict | None = None
+
     # -----------------------------------------------------------------------
     # Serialisation
     # -----------------------------------------------------------------------
@@ -102,6 +115,9 @@ class WatchlistItem:
             "next_episode_to_air": self.next_episode_to_air,
             "has_new_episode": self.has_new_episode,
             "watch_providers": self.watch_providers,
+            "suggestion": self.suggestion,
+            "dismiss_reason": self.dismiss_reason,
+            "watch_link": self.watch_link,
         }
 
     @classmethod
@@ -131,6 +147,9 @@ class WatchlistItem:
             last_episode_to_air=data.get("last_episode_to_air"),
             next_episode_to_air=data.get("next_episode_to_air"),
             watch_providers=data.get("watch_providers"),
+            suggestion=data.get("suggestion"),
+            dismiss_reason=data.get("dismiss_reason", ""),
+            watch_link=data.get("watch_link"),
         )
 
     def to_entity_attributes(self) -> dict[str, Any]:
@@ -159,6 +178,9 @@ class WatchlistItem:
             "next_episode_to_air": self.next_episode_to_air,
             "has_new_episode": self.has_new_episode,
             "watch_providers": self.watch_providers,
+            "suggestion": self.suggestion,
+            "dismiss_reason": self.dismiss_reason,
+            "watch_link": self.watch_link,
         }
 
     @property
@@ -166,7 +188,9 @@ class WatchlistItem:
         """True if there is an aired episode beyond the user's current progress."""
         if self.media_type != MEDIA_TYPE_TV:
             return False
-        if self.status == "watched":
+        # Suggestions and dismissed shows haven't been started, so "new
+        # episode" would only mean "this show exists".
+        if self.status in (STATUS_WATCHED, STATUS_SUGGESTED, STATUS_DISMISSED):
             return False
         ep = self.last_episode_to_air
         if not ep:

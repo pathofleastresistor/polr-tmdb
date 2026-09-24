@@ -12,6 +12,8 @@ A custom Home Assistant integration and Lovelace card for managing your househol
 ## Features
 
 - Track movies and TV shows with statuses: Want to Watch, Watching, Watched, Paused
+- Suggestions with reasons, and a remembered "not for us" list
+- Watch links that open a title in its streaming app on a Google TV
 - TMDB metadata auto-fetched: posters, backdrops, ratings, genres, trailers, network info
 - TV show progress tracking (current season + episode)
 - New episode detection with badges
@@ -76,6 +78,51 @@ The card shows three sections:
 
 Click any poster to open a detail dialog with status, season/episode progress, rating, and notes.
 
+### Card options
+
+```yaml
+type: custom:polr-tmdb-card
+title: Try Next
+sections: [suggested, upnext]   # any of: new, soon, upnext, suggested
+default_section: suggested
+tvs:                            # Android TV Remote media players
+  - entity: media_player.media_room_theater_room_tv
+    name: Theater
+```
+
+With `tvs` set, anything that has a watch link gets **Open on** buttons that
+open the title in its streaming app on that TV.
+
+---
+
+## Suggestions and watch links
+
+Titles can be *suggested* with a reason (by a person or an automation). The card
+shows them in a **Suggested** section with **Add** (moves it to Up Next) and
+**Not for us** (dismisses it and records why). Dismissed titles are never
+suggested again.
+
+```yaml
+service: polr_tmdb.suggest
+data:
+  tmdb_id: 136311
+  media_type: tv
+  reason: Warm ensemble comedy from the Ted Lasso team.
+  source: Weekly suggester
+  watch_link_url: https://tv.apple.com/us/show/shrinking/umc.cmc.apzybj6eqf6pzccd97kev7bs
+  watch_link_service: Apple TV
+```
+
+Watch link formats confirmed on a Google TV Streamer (they open the show page;
+the app resumes where you left off):
+
+| Service | Link |
+|---|---|
+| HBO Max | `https://play.hbomax.com/show/<id>` |
+| Apple TV | `https://tv.apple.com/us/show/<slug>/<umc.cmc id>` |
+| Disney+ | `https://www.disneyplus.com/browse/entity-<id>` |
+| Hulu (in Disney+) | `https://www.disneyplus.com/browse/entity-<id from the hulu.com/series link>` |
+
 ---
 
 ## Available Services
@@ -87,6 +134,10 @@ Click any poster to open a detail dialog with status, season/episode progress, r
 | `polr_tmdb.update_status` | Change watch status |
 | `polr_tmdb.update_progress` | Update TV season/episode progress |
 | `polr_tmdb.update_rating` | Set personal rating (1–10) |
+| `polr_tmdb.suggest` | Suggest a title with a reason (safe to repeat) |
+| `polr_tmdb.dismiss` | Pass on a title, with an optional reason |
+| `polr_tmdb.set_watch_link` | Store the link that opens a title on a Google TV |
+| `polr_tmdb.open_on_tv` | Open a title's watch link on an Android TV Remote media player |
 
 ---
 

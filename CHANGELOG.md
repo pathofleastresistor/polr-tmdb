@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.2.0] - 2026-09-24
+
+### Added
+- Discovery statuses: `suggested` (proposed with a reason, not yet taken on) and
+  `dismissed` (passed on, with the reason remembered so it isn't suggested again)
+- `polr_tmdb.suggest` service: adds a title as suggested with a reason and
+  source, or refreshes the reason if it's already suggested. Never touches a
+  title the household already has on the list or dismissed, so a scheduled
+  suggester can re-run safely. Returns `outcome` and `item_id` when asked
+- `polr_tmdb.dismiss` service with an optional reason
+- Watch links: every item can store an https link that opens it in its
+  streaming app on a Google TV (`polr_tmdb.set_watch_link`, or pass it to
+  `suggest`)
+- `polr_tmdb.open_on_tv` service: opens an item's watch link on an Android TV
+  Remote media player, waking the TV first and giving it a few seconds to
+  settle (links sent the moment the TV reports "on" get dropped)
+- Card: "Suggested" section with the reason, Add / Not for us buttons and quick
+  dismiss reasons; "Open on" buttons for configured TVs on suggestions and in
+  the detail dialog; new `sections`, `default_section` and `tvs` options
+- Panel: Suggested and Not for us filters; reasons shown in the detail dialog
+
+### Changed
+- "All" in the panel hides dismissed titles
+- Dismissed titles are skipped by the daily metadata refresh
+
+### Fixed
+- Sensors created at startup now update as soon as a service or the card
+  changes their item, instead of waiting for the next daily refresh
+
 ## [1.1.0] - 2026-09-19
 
 ### Added

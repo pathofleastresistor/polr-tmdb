@@ -33,6 +33,8 @@ add_to_watchlist:
             - watching
             - watched
             - paused
+            - suggested
+            - dismissed
 
 remove_from_watchlist:
   name: Remove from Watchlist
@@ -67,6 +69,8 @@ update_status:
             - watching
             - watched
             - paused
+            - suggested
+            - dismissed
 
 update_progress:
   name: Update TV Progress
@@ -114,3 +118,125 @@ update_rating:
           min: 1
           max: 10
           mode: slider
+
+suggest:
+  name: Suggest
+  description: >-
+    Propose a movie or show to the household with a reason. Adds it with
+    status "suggested", or refreshes the reason if it's already suggested.
+    Titles already on the list or dismissed are left alone, so this is safe
+    to call repeatedly.
+  fields:
+    tmdb_id:
+      name: TMDB ID
+      description: The numeric TMDB ID of the movie or show.
+      required: true
+      example: 136311
+      selector:
+        number:
+          min: 1
+          mode: box
+    media_type:
+      name: Media Type
+      description: Whether this is a movie or TV show.
+      required: true
+      example: tv
+      selector:
+        select:
+          options:
+            - movie
+            - tv
+    reason:
+      name: Reason
+      description: One or two sentences on why it fits.
+      required: true
+      example: Warm ensemble comedy from the Ted Lasso team.
+      selector:
+        text:
+          multiline: true
+    source:
+      name: Source
+      description: Who or what made the suggestion.
+      required: false
+      example: Weekly suggester
+      selector:
+        text:
+    watch_link_url:
+      name: Watch link URL
+      description: https link that opens the title in its streaming app on a Google TV.
+      required: false
+      example: https://tv.apple.com/us/show/shrinking/umc.cmc.apzybj6eqf6pzccd97kev7bs
+      selector:
+        text:
+          type: url
+    watch_link_service:
+      name: Watch link service
+      description: Streaming service the link opens in.
+      required: false
+      example: Apple TV
+      selector:
+        text:
+
+dismiss:
+  name: Dismiss
+  description: Pass on a title, remembering why so it isn't suggested again.
+  fields:
+    item_id:
+      name: Item ID
+      description: The internal UUID of the watchlist item.
+      required: true
+      selector:
+        text:
+    reason:
+      name: Reason
+      description: Why it isn't for you (too stressful, too slow, dated...).
+      required: false
+      example: Too stressful
+      selector:
+        text:
+
+set_watch_link:
+  name: Set Watch Link
+  description: Store the link that opens this title in its streaming app on a Google TV.
+  fields:
+    item_id:
+      name: Item ID
+      description: The internal UUID of the watchlist item.
+      required: true
+      selector:
+        text:
+    url:
+      name: URL
+      description: https link to the title (empty clears it).
+      required: true
+      example: https://play.hbomax.com/show/e6e7bad9-d48d-4434-b334-7c651ffc4bdf
+      selector:
+        text:
+          type: url
+    service:
+      name: Service
+      description: Streaming service the link opens in.
+      required: false
+      example: HBO Max
+      selector:
+        text:
+
+open_on_tv:
+  name: Open on TV
+  description: >-
+    Open a title's watch link on an Android TV / Google TV (Android TV Remote
+    media player). Turns the TV on first if needed.
+  fields:
+    item_id:
+      name: Item ID
+      description: The internal UUID of the watchlist item.
+      required: true
+      selector:
+        text:
+    entity_id:
+      name: TV
+      description: Android TV Remote media player to open it on.
+      required: true
+      selector:
+        entity:
+          domain: media_player

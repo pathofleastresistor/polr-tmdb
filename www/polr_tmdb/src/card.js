@@ -12,13 +12,30 @@ const STATUS_LABELS = {
   watching: "Watching",
   watched: "Watched",
   paused: "Paused",
+  suggested: "Suggested",
+  dismissed: "Not for us",
 };
+
+const ALL_SECTIONS = ["new", "soon", "upnext", "suggested"];
+
+// Quick reasons offered when passing on a suggestion. They feed back into
+// whatever makes the suggestions, so they're phrased as taste, not ratings.
+const DISMISS_REASONS = [
+  "Too stressful",
+  "Too slow",
+  "Feels dated",
+  "Not our genre",
+  "Already seen it",
+  "Just not interested",
+];
 
 const STATUS_COLORS = {
   want_to_watch: "#6d6d6d",
   watching: "#1976d2",
   watched: "#2e7d32",
   paused: "#e65100",
+  suggested: "#7b1fa2",
+  dismissed: "#6d6d6d",
 };
 
 class TmdbShowsCard extends LitElement {
@@ -26,15 +43,19 @@ class TmdbShowsCard extends LitElement {
     _hass: { state: true },
     _config: { state: true },
     _items: { state: true },
-    _section: { state: true }, // "new" | "soon" | "upnext"
+    _section: { state: true }, // "new" | "soon" | "upnext" | "suggested"
     _detail: { state: true },
+    _dismissing: { state: true }, // item_id whose "not for us" chooser is open
+    _toast: { state: true },
   };
 
   constructor() {
     super();
     this._items = [];
-    this._section = "new";
+    this._section = null; // resolved from config on first render
     this._detail = null;
+    this._dismissing = null;
+    this._toast = null;
     this._loaded = false;
     this._unsubEvents = null;
     this._seasonCache = {};
@@ -49,7 +70,20 @@ class TmdbShowsCard extends LitElement {
   }
 
   setConfig(config) {
-    this._config = { title: "Watch Tonight", ...config };
+    const sections = (config.sections || ALL_SECTIONS).filter((s) => ALL_SECTIONS.includes(s));
+    if (!sections.length) throw new Error("sections must include at least one of: " + ALL_SECTIONS.join(", "));
+    const tvs = (config.tvs || []).map((tv) => (typeof tv === "string" ? { entity: tv } : tv));
+    for (const tv of tvs) {
+      if (!tv.entity || !tv.entity.startsWith("media_player.")) {
+        throw new Error("Each entry in tvs needs a media_player entity");
+      }
+    }
+    this._config = { title: "Watch Tonight", ...config, sections, tvs };
+    if (config.default_section && sections.includes(config.default_section)) {
+      this._section = config.default_section;
+    } else if (!sections.includes(this._section)) {
+      this._section = sections[0];
+    }
   }
 
   set hass(hass) {
@@ -86,6 +120,42 @@ class TmdbShowsCard extends LitElement {
     try {
       await this._hass.connection.sendMessagePromise({ type: "polr_tmdb/update", item_id: itemId, ...clean });
     } catch (e) { console.error("polr-tmdb-card: update failed", e); }
+  }
+
+  async _callService(service, data, toast) {
+    try {
+      await this._hass.callService("polr_tmdb", service, data);
+      if (toast) this._showToast(toast);
+    } catch (e) {
+      console.error(`polr-tmdb-card: ${service} failed`, e);
+      this._showToast(e?.message || "Something went wrong");
+    }
+  }
+
+  _showToast(text) {
+    this._toast = text;
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => (this._toast = null), 3500);
+  }
+
+  _tvName(tv) {
+    return tv.name || this._hass?.states?.[tv.entity]?.attributes?.friendly_name || tv.entity;
+  }
+
+  _openOnTv(item, tv) {
+    this._showToast(`Opening ${item.title} on ${this._tvName(tv)}…`);
+    this._callService("open_on_tv", { item_id: item.item_id, entity_id: tv.entity });
+  }
+
+  _addSuggestion(item) {
+    this._callService("update_status", { item_id: item.item_id, status: "want_to_watch" }, `Added ${item.title} to Up Next`);
+    if (this._detail?.item_id === item.item_id) this._detail = { ...item, status: "want_to_watch" };
+  }
+
+  _dismiss(item, reason) {
+    this._dismissing = null;
+    this._callService("dismiss", { item_id: item.item_id, reason: reason || "" }, `Passed on ${item.title}`);
+    if (this._detail?.item_id === item.item_id) this._detail = null;
   }
 
   async _removeItem(itemId) {
@@ -151,7 +221,7 @@ class TmdbShowsCard extends LitElement {
 
   get _newItems() {
     return this._items
-      .filter((i) => i.status !== "watched" && i.status !== "want_to_watch" && this._hasNewEpisode(i))
+      .filter((i) => ["watching", "paused"].includes(i.status) && this._hasNewEpisode(i))
       .sort((a, b) => a.title.localeCompare(b.title));
   }
 
@@ -171,9 +241,16 @@ class TmdbShowsCard extends LitElement {
       .sort((a, b) => a.title.localeCompare(b.title));
   }
 
-  get _activeItems() {
-    if (this._section === "new") return this._newItems;
-    if (this._section === "soon") return this._soonItems;
+  get _suggestedItems() {
+    return this._items
+      .filter((i) => i.status === "suggested")
+      .sort((a, b) => (b.suggestion?.suggested_at || "").localeCompare(a.suggestion?.suggested_at || ""));
+  }
+
+  _itemsFor(section) {
+    if (section === "new") return this._newItems;
+    if (section === "soon") return this._soonItems;
+    if (section === "suggested") return this._suggestedItems;
     return this._upNextItems;
   }
 
@@ -183,23 +260,15 @@ class TmdbShowsCard extends LitElement {
 
   render() {
     if (!this._config) return nothing;
-    const newItems = this._newItems;
-    const soonItems = this._soonItems;
-    const upNextItems = this._upNextItems;
-    const active = this._activeItems;
-
-    // Auto-select first non-empty section
-    const sections = [
-      { id: "new", label: "New", count: newItems.length },
-      { id: "soon", label: "Coming Soon", count: soonItems.length },
-      { id: "upnext", label: "Up Next", count: upNextItems.length },
-    ];
+    const labels = { new: "New", soon: "Coming Soon", upnext: "Up Next", suggested: "Suggested" };
+    const sections = this._config.sections.map((id) => ({ id, label: labels[id], count: this._itemsFor(id).length }));
+    const active = this._itemsFor(this._section);
 
     return html`
       <ha-card>
         <div class="card-header">
           <div class="section-pills">
-            ${sections.map(({ id, label, count }) => html`
+            ${sections.length === 1 ? html`<span class="single-title">${this._config.title}</span>` : sections.map(({ id, label, count }) => html`
               <button
                 class="pill ${this._section === id ? "pill-active" : ""} ${count === 0 ? "pill-empty" : ""}"
                 @click=${() => (this._section = id)}
@@ -215,7 +284,11 @@ class TmdbShowsCard extends LitElement {
 
         ${active.length === 0
           ? this._renderEmpty()
-          : html`<div class="poster-row">${repeat(active, (i) => i.item_id, (item) => this._renderPoster(item))}</div>`}
+          : this._section === "suggested"
+            ? html`<div class="suggestion-list">${repeat(active, (i) => i.item_id, (item) => this._renderSuggestion(item))}</div>`
+            : html`<div class="poster-row">${repeat(active, (i) => i.item_id, (item) => this._renderPoster(item))}</div>`}
+
+        ${this._toast ? html`<div class="toast">${this._toast}</div>` : nothing}
       </ha-card>
 
       ${this._detail ? this._renderDetailDialog() : nothing}
@@ -232,6 +305,7 @@ class TmdbShowsCard extends LitElement {
       new:    { icon: "mdi:check-circle-outline", heading: "All caught up!",        sub: "No new episodes to watch right now." },
       soon:   { icon: "mdi:calendar-blank-outline", heading: "Nothing coming soon", sub: "No new episodes airing in the next 2 weeks." },
       upnext: { icon: "mdi:playlist-play",         heading: "Queue is empty",       sub: "Add something to your watchlist to get started." },
+      suggested: { icon: "mdi:lightbulb-on-outline", heading: "No suggestions right now", sub: "New ones arrive with the next weekly pass." },
     };
     const { icon, heading, sub } = configs[this._section] || configs.upnext;
     return html`
@@ -265,7 +339,83 @@ class TmdbShowsCard extends LitElement {
   }
 
   // ---------------------------------------------------------------------------
-  // Detail dialog (unchanged from before)
+  // Suggestions
+  // ---------------------------------------------------------------------------
+
+  _streamingNames(item) {
+    return (item.watch_providers?.flatrate || []).map((p) => p.provider_name);
+  }
+
+  _renderSuggestion(item) {
+    const meta = [
+      item.release_date?.slice(0, 4),
+      item.media_type === "tv" && item.seasons ? `${item.seasons} season${item.seasons === 1 ? "" : "s"}` : null,
+      item.watch_link?.service || this._streamingNames(item)[0],
+    ].filter(Boolean).join(" · ");
+    return html`
+      <div class="suggestion">
+        <div class="suggestion-poster" @click=${() => (this._detail = item)}>
+          ${item.poster_path
+            ? html`<img src="${item.poster_path}" alt="${item.title}" loading="lazy" />`
+            : html`<div class="poster-fallback">${item.media_type === "tv" ? "📺" : "🎬"}</div>`}
+        </div>
+        <div class="suggestion-body">
+          <div class="suggestion-title" @click=${() => (this._detail = item)}>${item.title}</div>
+          <div class="suggestion-meta">${meta}</div>
+          ${item.suggestion?.reason ? html`<div class="suggestion-reason">${item.suggestion.reason}</div>` : nothing}
+          ${this._dismissing === item.item_id
+            ? this._renderDismissChooser(item)
+            : html`
+              <div class="suggestion-actions">
+                <button class="action action-primary" @click=${() => this._addSuggestion(item)}>
+                  <ha-icon icon="mdi:playlist-plus"></ha-icon> Add
+                </button>
+                <button class="action" @click=${() => (this._dismissing = item.item_id)}>
+                  <ha-icon icon="mdi:thumb-down-outline"></ha-icon> Not for us
+                </button>
+                ${item.trailer_url ? html`
+                  <a class="action" href="${item.trailer_url}" target="_blank" rel="noopener">
+                    <ha-icon icon="mdi:play-circle-outline"></ha-icon> Trailer
+                  </a>` : nothing}
+              </div>
+              ${this._renderTvButtons(item)}`}
+        </div>
+      </div>
+    `;
+  }
+
+  _renderTvButtons(item) {
+    if (!item.watch_link?.url || !this._config.tvs.length) return nothing;
+    return html`
+      <div class="tv-row">
+        <span class="tv-label">Open on</span>
+        ${this._config.tvs.map((tv) => html`
+          <button class="tv-btn" @click=${() => this._openOnTv(item, tv)}>
+            <ha-icon icon="mdi:television-play"></ha-icon> ${this._tvName(tv)}
+          </button>
+        `)}
+      </div>
+    `;
+  }
+
+  _renderDismissChooser(item) {
+    return html`
+      <div class="dismiss-chooser">
+        <div class="dismiss-prompt">What's the reason?</div>
+        <div class="dismiss-reasons">
+          ${DISMISS_REASONS.map((r) => html`<button class="reason-chip" @click=${() => this._dismiss(item, r)}>${r}</button>`)}
+        </div>
+        <div class="dismiss-custom">
+          <input class="dismiss-input" type="text" maxlength="200" placeholder="Or say why…"
+            @keydown=${(e) => { if (e.key === "Enter" && e.target.value.trim()) this._dismiss(item, e.target.value.trim()); }} />
+          <button class="action" @click=${() => (this._dismissing = null)}>Cancel</button>
+        </div>
+      </div>
+    `;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Detail dialog
   // ---------------------------------------------------------------------------
 
   _renderProgress(item) {
@@ -356,6 +506,24 @@ class TmdbShowsCard extends LitElement {
                 ${[item.release_date?.slice(0,4), item.genres?.slice(0,3).join(", "), item.vote_average ? `★ ${item.vote_average}` : null, item.networks?.[0]].filter(Boolean).join(" · ")}
               </div>
               <p class="dialog-overview">${item.overview}</p>
+
+              ${item.status === "suggested" ? html`
+                <div class="suggestion-box">
+                  ${item.suggestion?.reason ? html`<div><strong>Why it's here:</strong> ${item.suggestion.reason}</div>` : nothing}
+                  ${this._dismissing === item.item_id
+                    ? this._renderDismissChooser(item)
+                    : html`<div class="suggestion-actions">
+                        <button class="action action-primary" @click=${() => this._addSuggestion(item)}>
+                          <ha-icon icon="mdi:playlist-plus"></ha-icon> Add to Up Next
+                        </button>
+                        <button class="action" @click=${() => (this._dismissing = item.item_id)}>
+                          <ha-icon icon="mdi:thumb-down-outline"></ha-icon> Not for us
+                        </button>
+                      </div>`}
+                </div>
+              ` : nothing}
+
+              ${this._renderTvButtons(item)}
 
               <div class="section-label">Status</div>
               <div class="status-pills">
@@ -487,6 +655,40 @@ class TmdbShowsCard extends LitElement {
       padding: 1px 5px; font-size: 0.62rem; font-weight: 600; color: #fff;
     }
 
+    .single-title { font-size: 1.05rem; font-weight: 600; }
+
+    /* Suggestions */
+    .suggestion-list { display: flex; flex-direction: column; gap: 14px; padding: 4px 16px 16px; }
+    .suggestion { display: flex; gap: 12px; align-items: flex-start; }
+    .suggestion-poster { flex-shrink: 0; width: 84px; border-radius: 6px; overflow: hidden; cursor: pointer; background: var(--secondary-background-color, #222); }
+    .suggestion-poster img { width: 100%; aspect-ratio: 2/3; object-fit: cover; display: block; }
+    .suggestion-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+    .suggestion-title { font-weight: 600; font-size: 0.98rem; cursor: pointer; }
+    .suggestion-meta { font-size: 0.75rem; color: var(--secondary-text-color); }
+    .suggestion-reason { font-size: 0.84rem; line-height: 1.45; color: var(--primary-text-color); }
+    .suggestion-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+    .suggestion-box { display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem; line-height: 1.45; padding: 8px 10px; border-radius: 8px; margin-bottom: 6px; background: rgba(123,31,162,0.12); border: 1px solid rgba(123,31,162,0.45); }
+    .action {
+      display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; min-height: 32px; box-sizing: border-box;
+      border-radius: 16px; border: 1px solid var(--divider-color, #555); background: transparent;
+      color: var(--primary-text-color); cursor: pointer; font-size: 0.78rem; text-decoration: none; --mdc-icon-size: 16px;
+    }
+    .action-primary { background: var(--primary-color); border-color: var(--primary-color); color: #fff; }
+    .tv-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
+    .tv-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--secondary-text-color); }
+    .tv-btn {
+      display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; min-height: 32px; box-sizing: border-box;
+      border-radius: 16px; border: 1px solid var(--primary-color); background: transparent;
+      color: var(--primary-color); cursor: pointer; font-size: 0.78rem; --mdc-icon-size: 16px;
+    }
+    .dismiss-chooser { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+    .dismiss-prompt { font-size: 0.75rem; color: var(--secondary-text-color); }
+    .dismiss-reasons { display: flex; flex-wrap: wrap; gap: 6px; }
+    .reason-chip { padding: 5px 10px; min-height: 30px; border-radius: 14px; border: 1px solid var(--divider-color, #555); background: transparent; color: var(--primary-text-color); cursor: pointer; font-size: 0.76rem; }
+    .dismiss-custom { display: flex; gap: 6px; }
+    .dismiss-input { flex: 1; min-width: 0; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--divider-color, #555); background: transparent; color: var(--primary-text-color); font-size: 0.8rem; }
+    .toast { margin: 0 16px 12px; padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; background: var(--secondary-background-color, #333); color: var(--primary-text-color); }
+
     .empty-state {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       padding: 32px 16px 40px; gap: 8px; text-align: center;
@@ -574,4 +776,4 @@ customElements.define("polr-tmdb-card", TmdbShowsCard);
 customElements.define("polr-tmdb-card-editor", TmdbShowsCardEditor);
 
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "polr-tmdb-card", name: "TMDB Shows & Movies", description: "What to watch tonight.", preview: false });
+window.customCards.push({ type: "polr-tmdb-card", name: "TMDB Shows & Movies", description: "What to watch tonight, and what to try next.", preview: false });

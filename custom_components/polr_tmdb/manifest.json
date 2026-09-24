@@ -5,7 +5,7 @@
   "documentation": "https://github.com/pathofleastresistor/polr-tmdb",
   "issue_tracker": "https://github.com/pathofleastresistor/polr-tmdb/issues",
   "codeowners": ["@pathofleastresistor"],
-  "version": "1.1.0",
+  "version": "1.2.0",
   "iot_class": "cloud_polling",
   "integration_type": "hub",
   "requirements": []

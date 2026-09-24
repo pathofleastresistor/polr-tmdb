@@ -1,6 +1,7 @@
 """TMDB Shows & Movies integration for Home Assistant."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -8,7 +9,14 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.components.frontend import async_register_built_in_panel
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, ServiceCall, callback
+from homeassistant.core import (
+    HomeAssistant,
+    ServiceCall,
+    ServiceResponse,
+    SupportsResponse,
+    callback,
+)
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity_registry import async_get as async_get_entity_registry
 
@@ -22,9 +30,19 @@ from .const import (
     DOMAIN,
     EVENT_TMDB_SHOWS_UPDATED,
     MEDIA_TYPE_TV,
+    STATUS_DISMISSED,
+    STATUS_SUGGESTED,
     STATUS_WANT_TO_WATCH,
 )
 from .coordinator import TmdbShowsCoordinator
+from .discovery import (
+    SUGGEST_CREATE,
+    SUGGEST_SKIP,
+    build_watch_link,
+    clean_text,
+    plan_suggestion,
+)
+from .media import _now_iso
 from .sensor import TmdbShowsSensor
 from .store import WatchlistStore
 
@@ -107,7 +125,7 @@ async def _async_register_panel(hass: HomeAssistant) -> None:
         config={
             "_panel_custom": {
                 "name": "polr-tmdb-panel",
-                "module_url": "/local/polr_tmdb/panel.js?v=10",
+                "module_url": "/local/polr_tmdb/panel.js?v=11",
                 "embed_iframe": False,
                 "trust_external": False,
             }
@@ -207,6 +225,116 @@ async def _do_update(hass: HomeAssistant, item_id: str, **kwargs) -> dict | None
 
 
 # ---------------------------------------------------------------------------
+# Discovery: suggestions, dismissals, watch links, opening on a TV
+# ---------------------------------------------------------------------------
+
+def _watch_link_or_raise(url: str | None, service: str | None) -> dict | None:
+    try:
+        return build_watch_link(url, service)
+    except ValueError as err:
+        raise ServiceValidationError(str(err)) from err
+
+
+async def _do_suggest(
+    hass: HomeAssistant,
+    tmdb_id: int,
+    media_type: str,
+    reason: str,
+    source: str = "",
+    watch_link: dict | None = None,
+) -> dict:
+    """Propose a title. Never overrides a show the household already decided on.
+
+    Returns {"outcome": "created" | "updated" | "skipped", "item": {...}}.
+    """
+    store: WatchlistStore = hass.data[DOMAIN]["store"]
+    existing = store.get_by_tmdb_id(tmdb_id)
+    plan = plan_suggestion(existing.status if existing else None)
+
+    suggestion = {
+        "reason": clean_text(reason),
+        "source": clean_text(source, 60),
+        "suggested_at": _now_iso(),
+    }
+
+    if plan == SUGGEST_SKIP:
+        # Still worth keeping a link we didn't have.
+        if watch_link and not existing.watch_link:
+            item = await _do_update(hass, existing.item_id, watch_link=watch_link)
+            return {"outcome": "skipped", "item": item}
+        return {"outcome": "skipped", "item": existing.to_dict()}
+
+    if plan == SUGGEST_CREATE:
+        added = await _do_add(hass, tmdb_id, media_type, STATUS_SUGGESTED)
+        item_id = added["item_id"]
+        outcome = "created"
+    else:
+        item_id = existing.item_id
+        outcome = "updated"
+
+    fields: dict[str, Any] = {"suggestion": suggestion}
+    if watch_link:
+        fields["watch_link"] = watch_link
+    item = await _do_update(hass, item_id, **fields)
+    return {"outcome": outcome, "item": item}
+
+
+async def _do_dismiss(hass: HomeAssistant, item_id: str, reason: str = "") -> dict | None:
+    return await _do_update(
+        hass, item_id, status=STATUS_DISMISSED, dismiss_reason=clean_text(reason)
+    )
+
+
+# How long to wait for a TV that was off to finish waking before sending the
+# link. Measured on a Google TV Streamer: a link sent the instant the device
+# reports "on" is dropped while the launcher is still coming up.
+TV_WAKE_TIMEOUT_S = 12
+TV_SETTLE_S = 4
+
+
+async def _sleep(seconds: float) -> None:
+    """Indirection so tests can skip the real wake/settle delays."""
+    await asyncio.sleep(seconds)
+
+
+async def _do_open_on_tv(hass: HomeAssistant, item_id: str, entity_id: str) -> None:
+    """Open an item's watch link on an Android TV Remote media_player."""
+    store: WatchlistStore = hass.data[DOMAIN]["store"]
+    item = store.get_by_id(item_id)
+    if item is None:
+        raise ServiceValidationError(f"Unknown watchlist item: {item_id}")
+    if not item.watch_link or not item.watch_link.get("url"):
+        raise ServiceValidationError(f"{item.title or item_id} has no watch link yet")
+    if not entity_id.startswith("media_player."):
+        raise ServiceValidationError("entity_id must be a media_player entity")
+    state = hass.states.get(entity_id)
+    if state is None:
+        raise ServiceValidationError(f"Unknown entity: {entity_id}")
+
+    if state.state in ("off", "standby"):
+        await hass.services.async_call(
+            "media_player", "turn_on", {"entity_id": entity_id}, blocking=True
+        )
+        for _ in range(TV_WAKE_TIMEOUT_S * 2):
+            current = hass.states.get(entity_id)
+            if current and current.state not in ("off", "standby"):
+                break
+            await _sleep(0.5)
+        await _sleep(TV_SETTLE_S)
+
+    await hass.services.async_call(
+        "media_player",
+        "play_media",
+        {
+            "entity_id": entity_id,
+            "media_content_type": "url",
+            "media_content_id": item.watch_link["url"],
+        },
+        blocking=True,
+    )
+
+
+# ---------------------------------------------------------------------------
 # HA Services
 # ---------------------------------------------------------------------------
 
@@ -279,6 +407,77 @@ def _async_register_services(hass: HomeAssistant) -> None:
         schema=vol.Schema({
             vol.Required("item_id"): str,
             vol.Required("rating"): vol.All(cv.positive_int, vol.Range(min=1, max=10)),
+        }),
+    )
+
+    # --- Discovery -------------------------------------------------------
+
+    async def svc_suggest(call: ServiceCall) -> ServiceResponse:
+        watch_link = _watch_link_or_raise(
+            call.data.get("watch_link_url"), call.data.get("watch_link_service")
+        )
+        result = await _do_suggest(
+            hass,
+            tmdb_id=call.data["tmdb_id"],
+            media_type=call.data["media_type"],
+            reason=call.data["reason"],
+            source=call.data.get("source", ""),
+            watch_link=watch_link,
+        )
+        return {"outcome": result["outcome"], "item_id": result["item"]["item_id"]}
+
+    async def svc_dismiss(call: ServiceCall) -> None:
+        if await _do_dismiss(hass, call.data["item_id"], call.data.get("reason", "")) is None:
+            raise ServiceValidationError(f"Unknown watchlist item: {call.data['item_id']}")
+
+    async def svc_set_watch_link(call: ServiceCall) -> None:
+        watch_link = _watch_link_or_raise(call.data.get("url"), call.data.get("service"))
+        if await _do_update(hass, call.data["item_id"], watch_link=watch_link) is None:
+            raise ServiceValidationError(f"Unknown watchlist item: {call.data['item_id']}")
+
+    async def svc_open_on_tv(call: ServiceCall) -> None:
+        await _do_open_on_tv(hass, call.data["item_id"], call.data["entity_id"])
+
+    hass.services.async_register(
+        DOMAIN,
+        "suggest",
+        svc_suggest,
+        schema=vol.Schema({
+            vol.Required("tmdb_id"): cv.positive_int,
+            vol.Required("media_type"): vol.In(ALL_MEDIA_TYPES),
+            vol.Required("reason"): cv.string,
+            vol.Optional("source", default=""): cv.string,
+            vol.Optional("watch_link_url"): cv.string,
+            vol.Optional("watch_link_service"): cv.string,
+        }),
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "dismiss",
+        svc_dismiss,
+        schema=vol.Schema({
+            vol.Required("item_id"): str,
+            vol.Optional("reason", default=""): cv.string,
+        }),
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "set_watch_link",
+        svc_set_watch_link,
+        schema=vol.Schema({
+            vol.Required("item_id"): str,
+            vol.Required("url"): cv.string,  # "" clears the link
+            vol.Optional("service", default=""): cv.string,
+        }),
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "open_on_tv",
+        svc_open_on_tv,
+        schema=vol.Schema({
+            vol.Required("item_id"): str,
+            vol.Required("entity_id"): cv.entity_id,
         }),
     )
 

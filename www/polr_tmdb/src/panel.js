@@ -6,6 +6,8 @@ const STATUS_LABELS = {
   watching: "Watching",
   watched: "Watched",
   paused: "Paused",
+  suggested: "Suggested",
+  dismissed: "Not for us",
 };
 
 const STATUS_COLORS = {
@@ -13,6 +15,8 @@ const STATUS_COLORS = {
   watching: "#1976d2",
   watched: "#2e7d32",
   paused: "#e65100",
+  suggested: "#7b1fa2",
+  dismissed: "var(--secondary-text-color, #6d6d6d)",
 };
 
 const MEDIA_ICONS = { movie: "mdi:movie", tv: "mdi:television" };
@@ -169,7 +173,9 @@ class TmdbShowsPanel extends LitElement {
   }
 
   get _filteredItems() {
-    if (this._statusFilter === "all") return this._items;
+    // Dismissed suggestions are kept so they aren't suggested again, but they
+    // aren't part of the list; they only show under their own filter.
+    if (this._statusFilter === "all") return this._items.filter((i) => i.status !== "dismissed");
     return this._items.filter((i) => i.status === this._statusFilter);
   }
 
@@ -208,7 +214,7 @@ class TmdbShowsPanel extends LitElement {
   _renderList() {
     return html`
       <div class="filter-bar">
-        ${["all", "want_to_watch", "watching", "watched", "paused"].map((s) => html`
+        ${["all", "want_to_watch", "watching", "watched", "paused", "suggested", "dismissed"].map((s) => html`
           <button
             class="chip ${this._statusFilter === s ? "chip-active" : ""}"
             @click=${() => (this._statusFilter = s)}
@@ -422,6 +428,10 @@ class TmdbShowsPanel extends LitElement {
                 ${[item.release_date?.slice(0,4), item.genres?.slice(0,3).join(", "), item.vote_average ? `★ ${item.vote_average}` : null, item.networks?.[0]].filter(Boolean).join(" · ")}
               </div>
               <p class="dlg-overview">${item.overview}</p>
+              ${item.status === "suggested" && item.suggestion?.reason
+                ? html`<p class="dlg-note"><strong>Suggested:</strong> ${item.suggestion.reason}</p>` : nothing}
+              ${item.status === "dismissed" && item.dismiss_reason
+                ? html`<p class="dlg-note"><strong>Passed:</strong> ${item.dismiss_reason}</p>` : nothing}
 
               <div class="section-label">Status</div>
               <div class="chip-row">
@@ -553,6 +563,7 @@ class TmdbShowsPanel extends LitElement {
       background: var(--secondary-background-color); flex-shrink: 0;
       --mdc-icon-size: 48px; color: var(--secondary-text-color);
     }
+    .dlg-note { font-size: 0.82rem; line-height: 1.45; margin: 0 0 8px; color: var(--secondary-text-color); }
     .status-badge {
       position: absolute; top: 5px; left: 5px;
       padding: 2px 5px; border-radius: 3px; font-size: 0.6rem;

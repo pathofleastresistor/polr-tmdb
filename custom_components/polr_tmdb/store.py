@@ -95,6 +95,7 @@ class WatchlistStore:
             "status", "rating", "notes", "current_season", "current_episode",
             "title", "poster_path", "backdrop_path", "overview", "genres",
             "vote_average", "release_date", "runtime", "networks", "seasons", "trailer_url",
+            "suggestion", "dismiss_reason", "watch_link",
         }
         for key, value in kwargs.items():
             if key in allowed_fields:

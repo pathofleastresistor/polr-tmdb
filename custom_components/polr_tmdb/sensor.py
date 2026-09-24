@@ -37,6 +37,11 @@ async def async_setup_entry(
         TmdbShowsSensor(coordinator, item)
         for item in store.get_all()
     ]
+    # Register them so service/websocket mutations can push fresh state
+    # immediately; without this, startup sensors only updated on the daily
+    # coordinator refresh.
+    for entity in entities:
+        data["sensors"][entity.item_id] = entity
     async_add_entities(entities)
 
 
@@ -55,6 +60,10 @@ class TmdbShowsSensor(CoordinatorEntity, SensorEntity):
         self._item = item
         self._attr_unique_id = f"polr_tmdb_{item.item_id}"
         self.entity_id = f"sensor.polr_tmdb_{slugify(item.title or item.item_id)}"
+
+    @property
+    def item_id(self) -> str:
+        return self._item_id
 
     # ------------------------------------------------------------------
     # Entity properties
