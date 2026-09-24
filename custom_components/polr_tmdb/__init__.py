@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
+from pathlib import Path
 from typing import Any
 
 import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.components.frontend import async_register_built_in_panel
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import (
     HomeAssistant,
@@ -49,6 +52,14 @@ from .store import WatchlistStore
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = ["sensor"]
+
+# The sidebar panel ships inside the integration and is served from here, so a
+# HACS integration install is enough to get it (no separate frontend install).
+FRONTEND_DIR = Path(__file__).parent.resolve() / "frontend"
+FRONTEND_URL = f"/{DOMAIN}_frontend"
+# Kept outside hass.data[DOMAIN], which is dropped on unload: static paths
+# can't be unregistered, so registering again on reload would fail.
+DATA_STATIC_REGISTERED = f"{DOMAIN}_static_registered"
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -115,7 +126,20 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 # ---------------------------------------------------------------------------
 
 async def _async_register_panel(hass: HomeAssistant) -> None:
-    """Register the sidebar panel for managing the watchlist."""
+    """Serve the bundled panel JS and register the sidebar panel."""
+    if not hass.data.get(DATA_STATIC_REGISTERED):
+        await hass.http.async_register_static_paths(
+            [StaticPathConfig(FRONTEND_URL, str(FRONTEND_DIR), False)]
+        )
+        hass.data[DATA_STATIC_REGISTERED] = True
+
+    # Cache-bust with the file's hash so browsers pick up a new build after
+    # an update without a hard refresh.
+    panel_js = FRONTEND_DIR / "panel.js"
+    digest = await hass.async_add_executor_job(
+        lambda: hashlib.sha256(panel_js.read_bytes()).hexdigest()[:12]
+    )
+
     async_register_built_in_panel(
         hass,
         component_name="custom",
@@ -125,7 +149,7 @@ async def _async_register_panel(hass: HomeAssistant) -> None:
         config={
             "_panel_custom": {
                 "name": "polr-tmdb-panel",
-                "module_url": "/local/polr_tmdb/panel.js?v=11",
+                "module_url": f"{FRONTEND_URL}/panel.js?v={digest}",
                 "embed_iframe": False,
                 "trust_external": False,
             }

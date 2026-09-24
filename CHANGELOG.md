@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.1] - 2026-09-24
+
+### Fixed
+- The sidebar panel now ships inside the integration and is served by it, so a
+  HACS integration install is enough to get it. Previously it loaded from
+  `/local/polr_tmdb/panel.js`, which only existed on a dev machine. Requires
+  Home Assistant 2024.7 or newer
+
 ## [1.2.0] - 2026-09-24
 
 ### Added

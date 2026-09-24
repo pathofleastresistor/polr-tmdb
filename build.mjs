@@ -19,7 +19,7 @@ if (existsSync(".env")) {
 const HA_CONFIG = env.HA_CONFIG ?? process.env.HA_CONFIG ?? "../ha-config/homeassistant";
 const HA_WWW = env.HA_WWW ?? process.env.HA_WWW ?? `${HA_CONFIG}/www/polr_tmdb`;
 const RESOURCES_FILE = env.HA_RESOURCES_FILE ?? process.env.HA_RESOURCES_FILE ?? `${HA_CONFIG}/.storage/lovelace_resources`;
-const INIT_PY = "custom_components/polr_tmdb/__init__.py";
+const PANEL_OUT = "custom_components/polr_tmdb/frontend/panel.js";
 
 // ---------------------------------------------------------------------------
 // Screenshots: compress images in screenshots/ to jpg, max 1200px wide
@@ -58,16 +58,17 @@ function runSetup() {
   console.log(`Symlink created: ${componentLink} → ${componentTarget}`);
 
   // www/polr_tmdb is NOT symlinked — HA's HTTP server doesn't follow symlinks
-  // for /local/ serving. Run `npm run build` to write card.js/panel.js directly.
+  // for /local/ serving. Run `npm run build` to write card.js directly.
+  // panel.js is built into the integration, which serves it itself.
 }
 
 // ---------------------------------------------------------------------------
-// Bump ?v= on card.js (lovelace resource) and panel.js (module_url in __init__.py)
+// Bump ?v= on card.js (lovelace resource). panel.js needs no bump: the
+// integration cache-busts it with a hash of the file.
 // ---------------------------------------------------------------------------
 
 function bumpVersions() {
   if (RESOURCES_FILE === "/dev/null") return;
-  // --- card.js in lovelace_resources ---
   const raw = readFileSync(RESOURCES_FILE, "utf8");
   const data = JSON.parse(raw);
   let next = 1;
@@ -79,14 +80,6 @@ function bumpVersions() {
     }
   }
   writeFileSync(RESOURCES_FILE, JSON.stringify(data, null, 2));
-
-  // --- panel.js module_url in __init__.py ---
-  let init = readFileSync(INIT_PY, "utf8");
-  init = init.replace(
-    /"module_url": "\/local\/polr_tmdb\/panel\.js(\?v=\d+)?"/,
-    `"module_url": "/local/polr_tmdb/panel.js?v=${next}"`
-  );
-  writeFileSync(INIT_PY, init);
 
   console.log(`  Resource version → v${next}`);
 }
@@ -105,7 +98,7 @@ const sharedConfig = {
 const builds = [
   { entryPoints: ["www/polr_tmdb/src/card.js"],  outfile: `${HA_WWW}/card.js` },
   { entryPoints: ["www/polr_tmdb/src/card.js"],  outfile: "card.js" }, // root copy for HACS
-  { entryPoints: ["www/polr_tmdb/src/panel.js"], outfile: `${HA_WWW}/panel.js` },
+  { entryPoints: ["www/polr_tmdb/src/panel.js"], outfile: PANEL_OUT },
 ];
 
 if (setup) {
@@ -117,9 +110,9 @@ if (setup) {
     builds.map((b) => esbuild.context({ ...sharedConfig, ...b }))
   );
   await Promise.all(contexts.map((ctx) => ctx.watch()));
-  console.log(`Watching — output to ${HA_WWW}/`);
+  console.log(`Watching — card to ${HA_WWW}/, panel to ${PANEL_OUT}`);
 } else {
   await Promise.all(builds.map((b) => esbuild.build({ ...sharedConfig, ...b })));
   bumpVersions();
-  console.log(`Build complete — output to ${HA_WWW}/`);
+  console.log(`Build complete — card to ${HA_WWW}/, panel to ${PANEL_OUT}`);
 }
