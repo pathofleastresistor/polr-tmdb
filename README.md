@@ -18,7 +18,7 @@ A custom Home Assistant integration and Lovelace card for managing your househol
 - TV show progress tracking (current season + episode)
 - New episode detection with badges
 - Personal ratings (1–10) and notes
-- Lovelace card with New / Coming Soon / Up Next sections
+- Lovelace card with New / Coming Soon / Up Next sections, and search to add titles in place
 - HA sidebar panel for searching TMDB and managing your list
 - Real-time sync across all open dashboards via HA events
 - HA services for automation integration
@@ -55,7 +55,24 @@ Use the **Shows & Movies** panel in the HA sidebar:
 2. Select TV Show or Movie and type a title
 3. Click **Add** on the result
 
-Or via HA services:
+Or tap the **search** icon on the card, type a title, and tap **Add** — it goes
+straight to Up Next. Titles you already have show their status instead; tap it
+to open the item.
+
+Or via HA services. `polr_tmdb.search` finds the TMDB ID (and tells you if the
+title is already on the list):
+```yaml
+service: polr_tmdb.search
+data:
+  query: Breaking Bad
+  media_type: tv   # optional; searches movies and shows when left out
+  limit: 5         # optional; defaults to 10
+response_variable: found
+```
+Each result has `tmdb_id`, `media_type`, `title`, `year`, `overview`,
+`rating`, `poster_url`, and — for titles already on the list — `item_id` and
+`status` (both `null` otherwise).
+
 ```yaml
 service: polr_tmdb.add_to_watchlist
 data:
@@ -88,6 +105,7 @@ default_section: suggested
 tvs:                            # Android TV Remote media players
   - entity: media_player.media_room_theater_room_tv
     name: Theater
+search: false                   # hide the search button (shown by default)
 ```
 
 With `tvs` set, anything that has a watch link gets **Open on** buttons that
@@ -129,6 +147,7 @@ the app resumes where you left off):
 
 | Service | Description |
 |---|---|
+| `polr_tmdb.search` | Search TMDB by title; returns matches and whether each is on the list |
 | `polr_tmdb.add_to_watchlist` | Add a movie or TV show by TMDB ID |
 | `polr_tmdb.remove_from_watchlist` | Remove an item by item_id |
 | `polr_tmdb.update_status` | Change watch status |

@@ -8,6 +8,7 @@ from custom_components.polr_tmdb.discovery import (
     build_watch_link,
     clean_text,
     plan_suggestion,
+    summarize_search_result,
 )
 from custom_components.polr_tmdb.media import WatchlistItem
 
@@ -105,3 +106,33 @@ class TestModelFields:
             last_episode_to_air={"season_number": 1, "episode_number": 3, "name": "", "air_date": ""},
         )
         assert item.has_new_episode is False
+
+
+class TestSummarizeSearchResult:
+    def test_tv_result(self):
+        raw = {"id": 136311, "name": "Shrinking", "first_air_date": "2023-01-27",
+               "vote_average": 8.234, "poster_path": "/p.jpg", "overview": "A  grieving\ntherapist"}
+        out = summarize_search_result(raw, "tv")
+        assert out == {
+            "tmdb_id": 136311, "media_type": "tv", "title": "Shrinking", "year": "2023",
+            "overview": "A grieving therapist", "rating": 8.2,
+            "poster_url": "https://image.tmdb.org/t/p/w500/p.jpg",
+            "item_id": None, "status": None,
+        }
+
+    def test_movie_with_missing_fields(self):
+        out = summarize_search_result({"id": 1, "title": "Obscure"}, "movie")
+        assert out["title"] == "Obscure"
+        assert out["year"] is None
+        assert out["rating"] is None
+        assert out["poster_url"] is None
+        assert out["overview"] == ""
+
+    def test_marks_existing_item(self):
+        out = summarize_search_result({"id": 1, "title": "X"}, "movie", {"item_id": "abc", "status": "watched"})
+        assert out["item_id"] == "abc"
+        assert out["status"] == "watched"
+
+    def test_long_overview_is_capped(self):
+        out = summarize_search_result({"id": 1, "overview": "x" * 1000}, "movie")
+        assert len(out["overview"]) == 300

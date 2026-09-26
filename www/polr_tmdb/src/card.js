@@ -47,6 +47,12 @@ class TmdbShowsCard extends LitElement {
     _detail: { state: true },
     _dismissing: { state: true }, // item_id whose "not for us" chooser is open
     _toast: { state: true },
+    _searchOpen: { state: true },
+    _searchQuery: { state: true },
+    _searchType: { state: true }, // "" (both) | "tv" | "movie"
+    _searchResults: { state: true }, // null until a search has run
+    _searching: { state: true },
+    _adding: { state: true },
   };
 
   constructor() {
@@ -59,6 +65,13 @@ class TmdbShowsCard extends LitElement {
     this._loaded = false;
     this._unsubEvents = null;
     this._seasonCache = {};
+    this._searchOpen = false;
+    this._searchQuery = "";
+    this._searchType = "";
+    this._searchResults = null;
+    this._searching = false;
+    this._adding = new Set();
+    this._searchSeq = 0;
   }
 
   static getConfigElement() {
@@ -78,7 +91,7 @@ class TmdbShowsCard extends LitElement {
         throw new Error("Each entry in tvs needs a media_player entity");
       }
     }
-    this._config = { title: "Watch Tonight", ...config, sections, tvs };
+    this._config = { title: "Watch Tonight", search: true, ...config, sections, tvs };
     if (config.default_section && sections.includes(config.default_section)) {
       this._section = config.default_section;
     } else if (!sections.includes(this._section)) {
@@ -97,6 +110,7 @@ class TmdbShowsCard extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    clearTimeout(this._searchTimer);
     if (this._unsubEvents) this._unsubEvents.then((fn) => fn && fn());
   }
 
@@ -180,6 +194,85 @@ class TmdbShowsCard extends LitElement {
     const key = `${tmdbId}:${seasonNumber}`;
     if (!this._seasonCache[key]) { this._fetchSeasonEpisodes(tmdbId, seasonNumber); return null; }
     return this._seasonCache[key];
+  }
+
+  // ---------------------------------------------------------------------------
+  // Search
+  // ---------------------------------------------------------------------------
+
+  _toggleSearch() {
+    this._searchOpen = !this._searchOpen;
+    if (this._searchOpen) {
+      this.updateComplete.then(() => this.renderRoot.querySelector(".search-input")?.focus());
+    } else {
+      clearTimeout(this._searchTimer);
+      this._searchSeq++; // drop any in-flight response
+      this._searchQuery = "";
+      this._searchResults = null;
+      this._searching = false;
+    }
+  }
+
+  _onSearchInput(value) {
+    this._searchQuery = value;
+    clearTimeout(this._searchTimer);
+    this._searchTimer = setTimeout(() => this._runSearch(), 400);
+  }
+
+  _setSearchType(type) {
+    this._searchType = type;
+    this._runSearch();
+  }
+
+  async _runSearch() {
+    clearTimeout(this._searchTimer);
+    const query = this._searchQuery.trim();
+    const seq = ++this._searchSeq;
+    if (!query) {
+      this._searchResults = null;
+      this._searching = false;
+      return;
+    }
+    this._searching = true;
+    const data = { query, limit: 20 };
+    if (this._searchType) data.media_type = this._searchType;
+    try {
+      const res = await this._hass.connection.sendMessagePromise({
+        type: "call_service", domain: "polr_tmdb", service: "search", service_data: data, return_response: true,
+      });
+      if (seq === this._searchSeq) this._searchResults = res?.response?.results || [];
+    } catch (e) {
+      console.error("polr-tmdb-card: search failed", e);
+      if (seq === this._searchSeq) {
+        this._searchResults = [];
+        this._showToast(e?.message || "Search failed");
+      }
+    } finally {
+      if (seq === this._searchSeq) this._searching = false;
+    }
+  }
+
+  // Looked up live rather than trusting the search response, so a title
+  // added a moment ago (here or on another dashboard) shows as on the list.
+  _itemForResult(result) {
+    return this._items.find((i) => i.tmdb_id === result.tmdb_id && i.media_type === result.media_type);
+  }
+
+  async _addFromSearch(result) {
+    const key = `${result.media_type}:${result.tmdb_id}`;
+    this._adding = new Set([...this._adding, key]);
+    try {
+      await this._hass.connection.sendMessagePromise({
+        type: "polr_tmdb/add", tmdb_id: result.tmdb_id, media_type: result.media_type, status: "want_to_watch",
+      });
+      await this._loadItems();
+      this._showToast(`Added ${result.title} to Up Next`);
+    } catch (e) {
+      console.error("polr-tmdb-card: add failed", e);
+      this._showToast(e?.message || "Couldn't add that title");
+    } finally {
+      const s = new Set(this._adding); s.delete(key); this._adding = s;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -271,22 +364,30 @@ class TmdbShowsCard extends LitElement {
             ${sections.length === 1 ? html`<span class="single-title">${this._config.title}</span>` : sections.map(({ id, label, count }) => html`
               <button
                 class="pill ${this._section === id ? "pill-active" : ""} ${count === 0 ? "pill-empty" : ""}"
-                @click=${() => (this._section = id)}
+                @click=${() => { this._section = id; if (this._searchOpen) this._toggleSearch(); }}
               >
                 ${label}${count > 0 ? html`<span class="pill-count">${count}</span>` : nothing}
               </button>
             `)}
           </div>
-          <button class="manage-btn" title="Manage watchlist" @click=${this._goToPanel}>
-            <ha-icon icon="mdi:plus-circle-outline"></ha-icon>
-          </button>
+          <div class="header-actions">
+            ${this._config.search ? html`
+              <button class="manage-btn ${this._searchOpen ? "manage-btn-active" : ""}" title="${this._searchOpen ? "Close search" : "Search"}" @click=${this._toggleSearch}>
+                <ha-icon icon="${this._searchOpen ? "mdi:close" : "mdi:magnify"}"></ha-icon>
+              </button>` : nothing}
+            <button class="manage-btn" title="Manage watchlist" @click=${this._goToPanel}>
+              <ha-icon icon="mdi:plus-circle-outline"></ha-icon>
+            </button>
+          </div>
         </div>
 
-        ${active.length === 0
-          ? this._renderEmpty()
-          : this._section === "suggested"
-            ? html`<div class="suggestion-list">${repeat(active, (i) => i.item_id, (item) => this._renderSuggestion(item))}</div>`
-            : html`<div class="poster-row">${repeat(active, (i) => i.item_id, (item) => this._renderPoster(item))}</div>`}
+        ${this._searchOpen
+          ? this._renderSearch()
+          : active.length === 0
+            ? this._renderEmpty()
+            : this._section === "suggested"
+              ? html`<div class="suggestion-list">${repeat(active, (i) => i.item_id, (item) => this._renderSuggestion(item))}</div>`
+              : html`<div class="poster-row">${repeat(active, (i) => i.item_id, (item) => this._renderPoster(item))}</div>`}
 
         ${this._toast ? html`<div class="toast">${this._toast}</div>` : nothing}
       </ha-card>
@@ -298,6 +399,62 @@ class TmdbShowsCard extends LitElement {
   _goToPanel() {
     history.pushState(null, "", "/polr-tmdb");
     window.dispatchEvent(new CustomEvent("location-changed", { bubbles: true, composed: true }));
+  }
+
+  _renderSearch() {
+    const types = [["", "All"], ["tv", "TV"], ["movie", "Movies"]];
+    const results = this._searchResults;
+    return html`
+      <div class="search-bar">
+        <input class="search-input" type="search" placeholder="Search movies & shows…" enterkeyhint="search"
+          .value=${this._searchQuery}
+          @input=${(e) => this._onSearchInput(e.target.value)}
+          @keydown=${(e) => e.key === "Enter" && this._runSearch()} />
+        <div class="search-types">
+          ${types.map(([id, label]) => html`
+            <button class="pill ${this._searchType === id ? "pill-active" : ""}" @click=${() => this._setSearchType(id)}>${label}</button>
+          `)}
+        </div>
+      </div>
+      ${this._searching && !results?.length
+        ? html`<div class="search-note">Searching…</div>`
+        : results === null
+          ? html`<div class="search-note">Find a movie or show to add to Up Next.</div>`
+          : results.length === 0
+            ? html`<div class="search-note">No matches for “${this._searchQuery.trim()}”.</div>`
+            : html`<div class="search-list">${repeat(results, (r) => `${r.media_type}:${r.tmdb_id}`, (r) => this._renderSearchResult(r))}</div>`}
+    `;
+  }
+
+  _renderSearchResult(result) {
+    const item = this._itemForResult(result);
+    const adding = this._adding.has(`${result.media_type}:${result.tmdb_id}`);
+    const meta = [result.year, result.media_type === "tv" ? "TV" : "Movie", result.rating ? `★ ${result.rating}` : null]
+      .filter(Boolean).join(" · ");
+    const open = item ? () => (this._detail = item) : null;
+    return html`
+      <div class="search-result">
+        <div class="search-poster ${open ? "clickable" : ""}" @click=${open || nothing}>
+          ${result.poster_url
+            ? html`<img src="${result.poster_url}" alt="${result.title}" loading="lazy" />`
+            : html`<div class="poster-fallback">${result.media_type === "tv" ? "📺" : "🎬"}</div>`}
+        </div>
+        <div class="search-body">
+          <div class="search-title">${result.title}</div>
+          <div class="suggestion-meta">${meta}</div>
+          ${result.overview ? html`<div class="search-overview">${result.overview}</div>` : nothing}
+        </div>
+        <div class="search-action">
+          ${item
+            ? html`<button class="status-chip" style="background:${STATUS_COLORS[item.status] || "#6d6d6d"}" @click=${open}>
+                ${STATUS_LABELS[item.status] || item.status}
+              </button>`
+            : html`<button class="action action-primary" ?disabled=${adding} @click=${() => this._addFromSearch(result)}>
+                <ha-icon icon="${adding ? "mdi:loading" : "mdi:playlist-plus"}"></ha-icon> ${adding ? "Adding" : "Add"}
+              </button>`}
+        </div>
+      </div>
+    `;
   }
 
   _renderEmpty() {
@@ -611,7 +768,8 @@ class TmdbShowsCard extends LitElement {
       --mdc-icon-size: 26px; flex-shrink: 0;
       transition: color 0.15s;
     }
-    .manage-btn:hover { color: var(--primary-color); }
+    .manage-btn:hover, .manage-btn-active { color: var(--primary-color); }
+    .header-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
     .pill {
       display: flex; align-items: center; gap: 5px;
       padding: 4px 12px; border-radius: 16px;
@@ -687,6 +845,28 @@ class TmdbShowsCard extends LitElement {
     .reason-chip { padding: 5px 10px; min-height: 30px; border-radius: 14px; border: 1px solid var(--divider-color, #555); background: transparent; color: var(--primary-text-color); cursor: pointer; font-size: 0.76rem; }
     .dismiss-custom { display: flex; gap: 6px; }
     .dismiss-input { flex: 1; min-width: 0; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--divider-color, #555); background: transparent; color: var(--primary-text-color); font-size: 0.8rem; }
+    /* Search */
+    .search-bar { display: flex; flex-direction: column; gap: 8px; padding: 0 16px 10px; }
+    .search-input {
+      width: 100%; box-sizing: border-box; padding: 8px 12px; border-radius: 18px;
+      border: 1px solid var(--divider-color, #555); background: transparent;
+      color: var(--primary-text-color); font-size: 0.9rem; font-family: inherit;
+    }
+    .search-input:focus { outline: none; border-color: var(--primary-color); }
+    .search-types { display: flex; gap: 6px; }
+    .search-note { padding: 20px 16px 28px; text-align: center; font-size: 0.85rem; color: var(--secondary-text-color); }
+    .search-list { display: flex; flex-direction: column; gap: 10px; padding: 0 16px 16px; max-height: 480px; overflow-y: auto; }
+    .search-result { display: flex; gap: 10px; align-items: center; }
+    .search-poster { flex-shrink: 0; width: 46px; border-radius: 4px; overflow: hidden; background: var(--secondary-background-color, #222); }
+    .search-poster img { width: 100%; aspect-ratio: 2/3; object-fit: cover; display: block; }
+    .search-poster .poster-fallback { font-size: 1.3rem; }
+    .clickable { cursor: pointer; }
+    .search-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .search-title { font-weight: 600; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .search-overview { font-size: 0.75rem; line-height: 1.35; color: var(--secondary-text-color); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .search-action { flex-shrink: 0; }
+    .search-action .action[disabled] { opacity: 0.7; cursor: default; }
+    .status-chip { padding: 5px 10px; min-height: 30px; border-radius: 14px; border: none; color: #fff; cursor: pointer; font-size: 0.74rem; white-space: nowrap; }
     .toast { margin: 0 16px 12px; padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; background: var(--secondary-background-color, #333); color: var(--primary-text-color); }
 
     .empty-state {

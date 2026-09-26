@@ -19,7 +19,7 @@ from homeassistant.core import (
     SupportsResponse,
     callback,
 )
-from homeassistant.exceptions import ServiceValidationError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity_registry import async_get as async_get_entity_registry
 
@@ -32,6 +32,7 @@ from .const import (
     CONF_REGION,
     DOMAIN,
     EVENT_TMDB_SHOWS_UPDATED,
+    MEDIA_TYPE_MOVIE,
     MEDIA_TYPE_TV,
     STATUS_DISMISSED,
     STATUS_SUGGESTED,
@@ -44,6 +45,7 @@ from .discovery import (
     build_watch_link,
     clean_text,
     plan_suggestion,
+    summarize_search_result,
 )
 from .media import _now_iso
 from .sensor import TmdbShowsSensor
@@ -194,7 +196,7 @@ async def _do_add(hass: HomeAssistant, tmdb_id: int, media_type: str, status: st
     async_add_entities = hass.data[DOMAIN]["async_add_entities"]
 
     # Check duplicate
-    existing = store.get_by_tmdb_id(tmdb_id)
+    existing = store.get_by_tmdb_id(tmdb_id, media_type)
     if existing:
         return existing.to_dict()
 
@@ -272,7 +274,7 @@ async def _do_suggest(
     Returns {"outcome": "created" | "updated" | "skipped", "item": {...}}.
     """
     store: WatchlistStore = hass.data[DOMAIN]["store"]
-    existing = store.get_by_tmdb_id(tmdb_id)
+    existing = store.get_by_tmdb_id(tmdb_id, media_type)
     plan = plan_suggestion(existing.status if existing else None)
 
     suggestion = {
@@ -314,6 +316,30 @@ async def _do_dismiss(hass: HomeAssistant, item_id: str, reason: str = "") -> di
 # reports "on" is dropped while the launcher is still coming up.
 TV_WAKE_TIMEOUT_S = 12
 TV_SETTLE_S = 4
+
+
+async def _do_search(
+    hass: HomeAssistant, query: str, media_type: str | None, limit: int
+) -> list[dict]:
+    """Search TMDB and mark which results are already on the watchlist.
+
+    With no media_type, movies and shows are searched together and merged by
+    TMDB popularity, so the best-known match comes first either way.
+    """
+    api: TmdbShowsApi = hass.data[DOMAIN]["api"]
+    store: WatchlistStore = hass.data[DOMAIN]["store"]
+    types = [media_type] if media_type else [MEDIA_TYPE_TV, MEDIA_TYPE_MOVIE]
+    batches = await asyncio.gather(*(api.async_search(query, t) for t in types))
+
+    raw = [(r, t) for t, batch in zip(types, batches) for r in batch]
+    raw.sort(key=lambda pair: pair[0].get("popularity") or 0, reverse=True)
+
+    # TMDB ids are only unique per media type, so match on both.
+    on_list = {(i.media_type, i.tmdb_id): i.to_dict() for i in store.get_all()}
+    return [
+        summarize_search_result(r, t, on_list.get((t, r.get("id"))))
+        for r, t in raw[:limit]
+    ]
 
 
 async def _sleep(seconds: float) -> None:
@@ -435,6 +461,32 @@ def _async_register_services(hass: HomeAssistant) -> None:
     )
 
     # --- Discovery -------------------------------------------------------
+
+    async def svc_search(call: ServiceCall) -> ServiceResponse:
+        query = call.data["query"].strip()
+        if not query:
+            raise ServiceValidationError("Search query can't be empty")
+        try:
+            results = await _do_search(
+                hass, query, call.data.get("media_type"), call.data["limit"]
+            )
+        except Exception as err:
+            _LOGGER.exception("search_failed: %s", err)
+            raise HomeAssistantError("TMDB search failed") from err
+        return {"results": results}
+
+    hass.services.async_register(
+        DOMAIN,
+        "search",
+        svc_search,
+        schema=vol.Schema({
+            vol.Required("query"): cv.string,
+            vol.Optional("media_type"): vol.In(ALL_MEDIA_TYPES),
+            vol.Optional("limit", default=10): vol.All(vol.Coerce(int), vol.Range(min=1, max=40)),
+        }),
+        supports_response=SupportsResponse.ONLY,
+    )
+
 
     async def svc_suggest(call: ServiceCall) -> ServiceResponse:
         watch_link = _watch_link_or_raise(

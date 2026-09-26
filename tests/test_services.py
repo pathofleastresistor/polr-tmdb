@@ -200,3 +200,68 @@ async def test_open_on_tv_rejects_non_media_player(hass, setup_integration):
         await hass.services.async_call(
             DOMAIN, "open_on_tv", {"item_id": item_id, "entity_id": "light.kitchen"}, blocking=True
         )
+
+
+# ---------------------------------------------------------------------------
+# search
+# ---------------------------------------------------------------------------
+
+TV_RESULTS = [
+    {"id": 136311, "name": "Shrinking", "first_air_date": "2023-01-27", "popularity": 50.0, "vote_average": 8.2},
+    {"id": 999, "name": "Shrinking Violets", "first_air_date": "2010-01-01", "popularity": 1.0},
+]
+MOVIE_RESULTS = [
+    {"id": 136311, "title": "Honey, I Shrunk", "release_date": "1989-06-23", "popularity": 20.0},
+]
+
+
+async def _search(hass, **data):
+    async def fake_search(self, query, media_type):
+        return TV_RESULTS if media_type == "tv" else MOVIE_RESULTS
+
+    with patch("custom_components.polr_tmdb.api.TmdbShowsApi.async_search", new=fake_search):
+        return await hass.services.async_call(
+            DOMAIN, "search", {"query": "shrink", **data}, blocking=True, return_response=True
+        )
+
+
+async def test_search_merges_types_by_popularity(hass, setup_integration):
+    resp = await _search(hass)
+    assert [(r["media_type"], r["tmdb_id"]) for r in resp["results"]] == [
+        ("tv", 136311), ("movie", 136311), ("tv", 999),
+    ]
+    assert resp["results"][0]["title"] == "Shrinking"
+    assert resp["results"][0]["item_id"] is None
+
+
+async def test_search_filters_type_and_limits(hass, setup_integration):
+    resp = await _search(hass, media_type="movie")
+    assert [r["media_type"] for r in resp["results"]] == ["movie"]
+    resp = await _search(hass, limit=1)
+    assert len(resp["results"]) == 1
+
+
+async def test_search_marks_items_on_list_by_type(hass, setup_integration):
+    await _suggest(hass)
+    item_id = _store(hass).get_by_tmdb_id(136311).item_id
+    resp = await _search(hass)
+    by_key = {(r["media_type"], r["tmdb_id"]): r for r in resp["results"]}
+    assert by_key[("tv", 136311)]["item_id"] == item_id
+    assert by_key[("tv", 136311)]["status"] == "suggested"
+    # Same TMDB id, different media type: not the same title
+    assert by_key[("movie", 136311)]["item_id"] is None
+
+
+async def test_search_rejects_blank_query(hass, setup_integration):
+    with pytest.raises(ServiceValidationError):
+        await _search(hass, query="   ")
+
+
+async def test_add_movie_with_same_id_as_listed_show(hass, setup_integration):
+    """Regression: movie and TV ids overlap, so adding one mustn't return the other."""
+    await _suggest(hass)
+    await hass.services.async_call(
+        DOMAIN, "add_to_watchlist", {"tmdb_id": 136311, "media_type": "movie"}, blocking=True
+    )
+    types = sorted(i.media_type for i in _store(hass).get_all() if i.tmdb_id == 136311)
+    assert types == ["movie", "tv"]

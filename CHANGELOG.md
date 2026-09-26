@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.3.0] - 2026-09-26
+
+### Added
+- `polr_tmdb.search` service: searches TMDB by title (movies, shows, or both
+  merged by popularity) and returns each match's TMDB ID, year, overview,
+  rating and poster, plus its `item_id` and `status` if it's already on the
+  list. Lets automations and assistants find a title before calling
+  `add_to_watchlist` or `suggest`
+- Card: search button in the header. Type a title, filter by All / TV /
+  Movies, and tap **Add** to put it in Up Next; titles already on the list show
+  their status and open the detail dialog. Hide it with `search: false`
+
+### Fixed
+- Adding or suggesting a movie no longer returns a TV show that happens to
+  share its TMDB ID (and vice versa); TMDB IDs are only unique per media type
+
 ## [1.2.1] - 2026-09-24
 
 ### Fixed
