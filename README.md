@@ -5,8 +5,6 @@
 
 <img src="screenshots/card.jpg" width="600" alt="Lovelace Card">
 
-<img src="screenshots/sidepanel.jpg" width="350" alt="Side Panel">
-
 A custom Home Assistant integration and Lovelace card for managing your household watchlist using [The Movie Database (TMDB)](https://www.themoviedb.org/).
 
 ## Features
@@ -18,8 +16,7 @@ A custom Home Assistant integration and Lovelace card for managing your househol
 - TV show progress tracking (current season + episode)
 - New episode detection with badges
 - Personal ratings (1–10) and notes
-- Lovelace card with New / Coming Soon / Up Next sections, and search to add titles in place
-- HA sidebar panel for searching TMDB and managing your list
+- One Lovelace card for everything: New / Coming Soon / Up Next / Suggested at a glance, with Search and Library opening as dialogs
 - Real-time sync across all open dashboards via HA events
 - HA services for automation integration
 
@@ -50,14 +47,11 @@ type: custom:polr-tmdb-card
 
 ## Adding Shows & Movies
 
-Use the **Shows & Movies** panel in the HA sidebar:
-1. Click **+ Add**
-2. Select TV Show or Movie and type a title
-3. Click **Add** on the result
-
-Or tap the **search** icon on the card, type a title, and tap **Add** — it goes
-straight to Up Next. Titles you already have show their status instead; tap it
-to open the item.
+Tap the 🔍 **Search** icon on the card and type a title:
+- Tap **+** on a poster to add it to Up Next in one go
+- Tap the poster itself for a preview (overview, genres, trailer, where to
+  watch), then **Add to Up Next** or **Watching now**
+- Titles already on your list show their status; tapping one opens it
 
 Or via HA services. `polr_tmdb.search` finds the TMDB ID (and tells you if the
 title is already on the list):
@@ -85,15 +79,27 @@ data:
 
 ## Lovelace Card
 
-The card shows three sections:
+The card is the whole UI. At a glance it shows up to four sections:
 
 | Section | Contents |
 |---|---|
 | **New** | TV shows with episodes aired beyond your current progress |
 | **Coming Soon** | Episodes airing within the next 14 days |
 | **Up Next** | Everything in your Want to Watch list |
+| **Suggested** | Titles proposed with a reason, waiting for Add / Not for us |
 
-Click any poster to open a detail dialog with status, season/episode progress, rating, and notes.
+Bigger tasks open as dialogs (full screen on phones), from the header icons:
+
+| Dialog | What it's for |
+|---|---|
+| 🔍 **Search** | Find a movie or show on TMDB, preview it, and add it |
+| 📚 **Library** | Your whole list, filtered by status (Watching, Watched, Paused, Not for us…) |
+| **Details** | Opens from any poster: status, season/episode progress, rating, notes, where to watch |
+
+Press **Esc** or tap outside a dialog to close it.
+
+> **Upgrading from 1.2?** The *Shows & Movies* sidebar panel is gone — everything
+> it did is in the card now. The sidebar entry disappears after a restart.
 
 ### Card options
 

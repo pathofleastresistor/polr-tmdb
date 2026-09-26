@@ -45,7 +45,6 @@ async def setup_integration(hass: HomeAssistant):
               new=AsyncMock(return_value=TV_DETAILS)),
         patch("custom_components.polr_tmdb.api.TmdbShowsApi.async_get_movie_details",
               new=AsyncMock(return_value={})),
-        patch("custom_components.polr_tmdb._async_register_panel", new=AsyncMock()),
         patch("custom_components.polr_tmdb.coordinator.asyncio.sleep", new=AsyncMock()),
     ):
         assert await hass.config_entries.async_setup(entry.entry_id)
@@ -265,3 +264,21 @@ async def test_add_movie_with_same_id_as_listed_show(hass, setup_integration):
     )
     types = sorted(i.media_type for i in _store(hass).get_all() if i.tmdb_id == 136311)
     assert types == ["movie", "tv"]
+
+
+# ---------------------------------------------------------------------------
+# preview
+# ---------------------------------------------------------------------------
+
+async def test_preview_returns_item_shape_without_adding(hass, setup_integration):
+    from custom_components.polr_tmdb import _do_preview
+
+    with patch("custom_components.polr_tmdb.api.TmdbShowsApi.async_get_tv_details",
+               new=AsyncMock(return_value=TV_DETAILS)):
+        preview = await _do_preview(hass, 136311, "tv")
+    assert preview["item_id"] is None
+    assert preview["status"] is None
+    assert preview["title"] == "Shrinking"
+    assert preview["seasons"] == 3
+    assert preview["genres"] == ["Comedy"]
+    assert _store(hass).get_all() == []

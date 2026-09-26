@@ -47,7 +47,9 @@ class TmdbShowsCard extends LitElement {
     _detail: { state: true },
     _dismissing: { state: true }, // item_id whose "not for us" chooser is open
     _toast: { state: true },
-    _searchOpen: { state: true },
+    _modal: { state: true }, // null | "search" | "library"
+    _libraryFilter: { state: true },
+    _previewLoading: { state: true },
     _searchQuery: { state: true },
     _searchType: { state: true }, // "" (both) | "tv" | "movie"
     _searchResults: { state: true }, // null until a search has run
@@ -65,7 +67,11 @@ class TmdbShowsCard extends LitElement {
     this._loaded = false;
     this._unsubEvents = null;
     this._seasonCache = {};
-    this._searchOpen = false;
+    this._modal = null;
+    this._libraryFilter = "all";
+    this._previewLoading = false;
+    this._previewSeq = 0;
+    this._onKeydown = (e) => { if (e.key === "Escape") this._closeTopLayer(); };
     this._searchQuery = "";
     this._searchType = "";
     this._searchResults = null;
@@ -108,10 +114,23 @@ class TmdbShowsCard extends LitElement {
     }
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    window.addEventListener("keydown", this._onKeydown);
+    // HA detaches and re-attaches cards when switching views; pick the
+    // event subscription back up (and catch up on what we missed).
+    if (this._loaded && !this._unsubEvents) {
+      this._loadItems();
+      this._subscribeEvents();
+    }
+  }
+
   disconnectedCallback() {
     super.disconnectedCallback();
+    window.removeEventListener("keydown", this._onKeydown);
     clearTimeout(this._searchTimer);
     if (this._unsubEvents) this._unsubEvents.then((fn) => fn && fn());
+    this._unsubEvents = null;
   }
 
   async _loadItems() {
@@ -123,8 +142,14 @@ class TmdbShowsCard extends LitElement {
   async _subscribeEvents() {
     this._unsubEvents = this._hass.connection.subscribeEvents((event) => {
       this._loadItems();
-      if (this._detail && event.data.item?.item_id === this._detail.item_id) {
-        this._detail = event.data.action === "remove" ? null : event.data.item;
+      const changed = event.data.item;
+      if (!this._detail || !changed) return;
+      if (changed.item_id === this._detail.item_id) {
+        this._detail = event.data.action === "remove" ? null : changed;
+      } else if (!this._detail.item_id && this._sameTitle(changed, this._detail)) {
+        // The title being previewed was just added (here or elsewhere):
+        // switch the dialog over to the real item.
+        this._detail = changed;
       }
     }, "polr_tmdb_updated");
   }
@@ -197,21 +222,41 @@ class TmdbShowsCard extends LitElement {
   }
 
   // ---------------------------------------------------------------------------
-  // Search
+  // Modals: search and library open over the dashboard; the detail dialog
+  // opens on top of either.
   // ---------------------------------------------------------------------------
 
-  _toggleSearch() {
-    this._searchOpen = !this._searchOpen;
-    if (this._searchOpen) {
+  _openModal(name) {
+    this._modal = name;
+    if (name === "search") {
       this.updateComplete.then(() => this.renderRoot.querySelector(".search-input")?.focus());
-    } else {
-      clearTimeout(this._searchTimer);
-      this._searchSeq++; // drop any in-flight response
-      this._searchQuery = "";
-      this._searchResults = null;
-      this._searching = false;
     }
   }
+
+  _closeModal() {
+    this._modal = null;
+    this._dismissing = null;
+  }
+
+  _closeDetail() {
+    this._detail = null;
+    this._dismissing = null;
+    this._previewSeq++; // drop any in-flight preview
+    this._previewLoading = false;
+  }
+
+  _closeTopLayer() {
+    if (this._detail) this._closeDetail();
+    else if (this._modal) this._closeModal();
+  }
+
+  _sameTitle(a, b) {
+    return a.tmdb_id === b.tmdb_id && a.media_type === b.media_type;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Search
+  // ---------------------------------------------------------------------------
 
   _onSearchInput(value) {
     this._searchQuery = value;
@@ -255,24 +300,73 @@ class TmdbShowsCard extends LitElement {
   // Looked up live rather than trusting the search response, so a title
   // added a moment ago (here or on another dashboard) shows as on the list.
   _itemForResult(result) {
-    return this._items.find((i) => i.tmdb_id === result.tmdb_id && i.media_type === result.media_type);
+    return this._items.find((i) => this._sameTitle(i, result));
   }
 
-  async _addFromSearch(result) {
-    const key = `${result.media_type}:${result.tmdb_id}`;
+  _openResult(result) {
+    const item = this._itemForResult(result);
+    if (item) {
+      this._detail = item;
+      return;
+    }
+    this._openPreview(result);
+  }
+
+  // Show what the search already knows straight away, then fill in the
+  // backdrop, genres, trailer and providers once TMDB answers.
+  async _openPreview(result) {
+    const seq = ++this._previewSeq;
+    this._detail = {
+      item_id: null, status: null,
+      tmdb_id: result.tmdb_id, media_type: result.media_type, title: result.title,
+      poster_path: result.poster_url, overview: result.overview,
+      vote_average: result.rating, release_date: result.year || "",
+    };
+    this._previewLoading = true;
+    try {
+      const full = await this._hass.connection.sendMessagePromise({
+        type: "polr_tmdb/preview", tmdb_id: result.tmdb_id, media_type: result.media_type,
+      });
+      if (seq === this._previewSeq && !this._detail?.item_id) this._detail = full;
+    } catch (e) {
+      console.error("polr-tmdb-card: preview failed", e);
+    } finally {
+      if (seq === this._previewSeq) this._previewLoading = false;
+    }
+  }
+
+  async _addTitle(title, status = "want_to_watch") {
+    const key = `${title.media_type}:${title.tmdb_id}`;
     this._adding = new Set([...this._adding, key]);
     try {
-      await this._hass.connection.sendMessagePromise({
-        type: "polr_tmdb/add", tmdb_id: result.tmdb_id, media_type: result.media_type, status: "want_to_watch",
+      const item = await this._hass.connection.sendMessagePromise({
+        type: "polr_tmdb/add", tmdb_id: title.tmdb_id, media_type: title.media_type, status,
       });
       await this._loadItems();
-      this._showToast(`Added ${result.title} to Up Next`);
+      this._showToast(`Added ${title.title} to ${status === "watching" ? "Watching" : "Up Next"}`);
+      if (this._detail && !this._detail.item_id && this._sameTitle(this._detail, title)) this._detail = item;
     } catch (e) {
       console.error("polr-tmdb-card: add failed", e);
       this._showToast(e?.message || "Couldn't add that title");
     } finally {
       const s = new Set(this._adding); s.delete(key); this._adding = s;
     }
+  }
+
+  _isAdding(title) {
+    return this._adding.has(`${title.media_type}:${title.tmdb_id}`);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Library
+  // ---------------------------------------------------------------------------
+
+  _libraryItems(filter) {
+    // "Not for us" titles only show under their own filter.
+    const items = filter === "all"
+      ? this._items.filter((i) => i.status !== "dismissed")
+      : this._items.filter((i) => i.status === filter);
+    return [...items].sort((a, b) => a.title.localeCompare(b.title));
   }
 
   // ---------------------------------------------------------------------------
@@ -364,7 +458,7 @@ class TmdbShowsCard extends LitElement {
             ${sections.length === 1 ? html`<span class="single-title">${this._config.title}</span>` : sections.map(({ id, label, count }) => html`
               <button
                 class="pill ${this._section === id ? "pill-active" : ""} ${count === 0 ? "pill-empty" : ""}"
-                @click=${() => { this._section = id; if (this._searchOpen) this._toggleSearch(); }}
+                @click=${() => (this._section = id)}
               >
                 ${label}${count > 0 ? html`<span class="pill-count">${count}</span>` : nothing}
               </button>
@@ -372,89 +466,121 @@ class TmdbShowsCard extends LitElement {
           </div>
           <div class="header-actions">
             ${this._config.search ? html`
-              <button class="manage-btn ${this._searchOpen ? "manage-btn-active" : ""}" title="${this._searchOpen ? "Close search" : "Search"}" @click=${this._toggleSearch}>
-                <ha-icon icon="${this._searchOpen ? "mdi:close" : "mdi:magnify"}"></ha-icon>
+              <button class="manage-btn" title="Search" @click=${() => this._openModal("search")}>
+                <ha-icon icon="mdi:magnify"></ha-icon>
               </button>` : nothing}
-            <button class="manage-btn" title="Manage watchlist" @click=${this._goToPanel}>
-              <ha-icon icon="mdi:plus-circle-outline"></ha-icon>
+            <button class="manage-btn" title="Library" @click=${() => this._openModal("library")}>
+              <ha-icon icon="mdi:bookshelf"></ha-icon>
             </button>
           </div>
         </div>
 
-        ${this._searchOpen
-          ? this._renderSearch()
-          : active.length === 0
-            ? this._renderEmpty()
-            : this._section === "suggested"
-              ? html`<div class="suggestion-list">${repeat(active, (i) => i.item_id, (item) => this._renderSuggestion(item))}</div>`
-              : html`<div class="poster-row">${repeat(active, (i) => i.item_id, (item) => this._renderPoster(item))}</div>`}
+        ${active.length === 0
+          ? this._renderEmpty()
+          : this._section === "suggested"
+            ? html`<div class="suggestion-list">${repeat(active, (i) => i.item_id, (item) => this._renderSuggestion(item))}</div>`
+            : html`<div class="poster-row">${repeat(active, (i) => i.item_id, (item) => this._renderPoster(item))}</div>`}
 
         ${this._toast ? html`<div class="toast">${this._toast}</div>` : nothing}
       </ha-card>
 
+      ${this._modal === "search" ? this._renderSearchModal() : nothing}
+      ${this._modal === "library" ? this._renderLibraryModal() : nothing}
       ${this._detail ? this._renderDetailDialog() : nothing}
     `;
   }
 
-  _goToPanel() {
-    history.pushState(null, "", "/polr-tmdb");
-    window.dispatchEvent(new CustomEvent("location-changed", { bubbles: true, composed: true }));
+  _renderModal(title, body, toolbar = nothing) {
+    return html`
+      <div class="modal-overlay" @click=${(e) => e.target === e.currentTarget && this._closeModal()}>
+        <div class="modal" role="dialog" aria-label="${title}">
+          <div class="modal-header">
+            <span class="modal-title">${title}</span>
+            <button class="modal-close" title="Close" @click=${() => this._closeModal()}>✕</button>
+          </div>
+          ${toolbar}
+          <div class="modal-body">${body}</div>
+          ${this._toast && !this._detail ? html`<div class="toast">${this._toast}</div>` : nothing}
+        </div>
+      </div>
+    `;
   }
 
-  _renderSearch() {
+  _renderSearchModal() {
     const types = [["", "All"], ["tv", "TV"], ["movie", "Movies"]];
     const results = this._searchResults;
-    return html`
-      <div class="search-bar">
+    const toolbar = html`
+      <div class="modal-toolbar">
         <input class="search-input" type="search" placeholder="Search movies & shows…" enterkeyhint="search"
           .value=${this._searchQuery}
           @input=${(e) => this._onSearchInput(e.target.value)}
           @keydown=${(e) => e.key === "Enter" && this._runSearch()} />
-        <div class="search-types">
+        <div class="chip-row">
           ${types.map(([id, label]) => html`
             <button class="pill ${this._searchType === id ? "pill-active" : ""}" @click=${() => this._setSearchType(id)}>${label}</button>
           `)}
         </div>
       </div>
-      ${this._searching && !results?.length
-        ? html`<div class="search-note">Searching…</div>`
-        : results === null
-          ? html`<div class="search-note">Find a movie or show to add to Up Next.</div>`
-          : results.length === 0
-            ? html`<div class="search-note">No matches for “${this._searchQuery.trim()}”.</div>`
-            : html`<div class="search-list">${repeat(results, (r) => `${r.media_type}:${r.tmdb_id}`, (r) => this._renderSearchResult(r))}</div>`}
+    `;
+    const body = this._searching && !results?.length
+      ? html`<div class="modal-note">Searching…</div>`
+      : results === null
+        ? html`<div class="modal-note">Find a movie or show. Tap it for details, or + to add it to Up Next.</div>`
+        : results.length === 0
+          ? html`<div class="modal-note">No matches for “${this._searchQuery.trim()}”.</div>`
+          : html`<div class="modal-grid">${repeat(results, (r) => `${r.media_type}:${r.tmdb_id}`, (r) => this._renderSearchTile(r))}</div>`;
+    return this._renderModal("Search", body, toolbar);
+  }
+
+  _renderSearchTile(result) {
+    const item = this._itemForResult(result);
+    const adding = this._isAdding(result);
+    const sub = [result.year, result.media_type === "tv" ? "TV" : "Movie"].filter(Boolean).join(" · ");
+    return html`
+      <div class="poster" @click=${() => this._openResult(result)}>
+        ${result.poster_url
+          ? html`<img class="poster-img" src="${result.poster_url}" alt="${result.title}" loading="lazy" />`
+          : html`<div class="poster-fallback">${result.media_type === "tv" ? "📺" : "🎬"}</div>`}
+        ${item
+          ? html`<span class="status-badge" style="background:${STATUS_COLORS[item.status] || "#6d6d6d"}">${STATUS_LABELS[item.status] || item.status}</span>`
+          : html`<button class="quick-add" title="Add to Up Next" ?disabled=${adding}
+              @click=${(e) => { e.stopPropagation(); this._addTitle(result); }}>
+              <ha-icon icon="${adding ? "mdi:loading" : "mdi:plus"}"></ha-icon>
+            </button>`}
+        <div class="poster-title">${result.title}</div>
+        <div class="poster-sub">${sub}</div>
+      </div>
     `;
   }
 
-  _renderSearchResult(result) {
-    const item = this._itemForResult(result);
-    const adding = this._adding.has(`${result.media_type}:${result.tmdb_id}`);
-    const meta = [result.year, result.media_type === "tv" ? "TV" : "Movie", result.rating ? `★ ${result.rating}` : null]
-      .filter(Boolean).join(" · ");
-    const open = item ? () => (this._detail = item) : null;
-    return html`
-      <div class="search-result">
-        <div class="search-poster ${open ? "clickable" : ""}" @click=${open || nothing}>
-          ${result.poster_url
-            ? html`<img src="${result.poster_url}" alt="${result.title}" loading="lazy" />`
-            : html`<div class="poster-fallback">${result.media_type === "tv" ? "📺" : "🎬"}</div>`}
-        </div>
-        <div class="search-body">
-          <div class="search-title">${result.title}</div>
-          <div class="suggestion-meta">${meta}</div>
-          ${result.overview ? html`<div class="search-overview">${result.overview}</div>` : nothing}
-        </div>
-        <div class="search-action">
-          ${item
-            ? html`<button class="status-chip" style="background:${STATUS_COLORS[item.status] || "#6d6d6d"}" @click=${open}>
-                ${STATUS_LABELS[item.status] || item.status}
-              </button>`
-            : html`<button class="action action-primary" ?disabled=${adding} @click=${() => this._addFromSearch(result)}>
-                <ha-icon icon="${adding ? "mdi:loading" : "mdi:playlist-plus"}"></ha-icon> ${adding ? "Adding" : "Add"}
-              </button>`}
+  _renderLibraryModal() {
+    const filters = [
+      ["all", "All"], ["watching", "Watching"], ["want_to_watch", "Want to Watch"], ["suggested", "Suggested"],
+      ["paused", "Paused"], ["watched", "Watched"], ["dismissed", "Not for us"],
+    ];
+    const items = this._libraryItems(this._libraryFilter);
+    const toolbar = html`
+      <div class="modal-toolbar">
+        <div class="chip-row chip-row-scroll">
+          ${filters.map(([id, label]) => {
+            const count = this._libraryItems(id).length;
+            return html`
+              <button class="pill ${this._libraryFilter === id ? "pill-active" : ""} ${count === 0 ? "pill-empty" : ""}"
+                @click=${() => (this._libraryFilter = id)}>
+                ${label}${count > 0 ? html`<span class="pill-count">${count}</span>` : nothing}
+              </button>`;
+          })}
         </div>
       </div>
     `;
+    const body = items.length === 0
+      ? html`<div class="modal-note">
+          ${this._libraryFilter === "all" ? "Your list is empty." : "Nothing here."}
+          ${this._config.search ? html`<button class="action" @click=${() => this._openModal("search")}>
+            <ha-icon icon="mdi:magnify"></ha-icon> Find something</button>` : nothing}
+        </div>`
+      : html`<div class="modal-grid">${repeat(items, (i) => i.item_id, (item) => this._renderPoster(item, true))}</div>`;
+    return this._renderModal("Library", body, toolbar);
   }
 
   _renderEmpty() {
@@ -470,11 +596,15 @@ class TmdbShowsCard extends LitElement {
         <ha-icon class="empty-icon" .icon=${icon}></ha-icon>
         <div class="empty-heading">${heading}</div>
         <div class="empty-sub">${sub}</div>
+        ${this._section === "upnext" && this._config.search ? html`
+          <button class="action" @click=${() => this._openModal("search")}>
+            <ha-icon icon="mdi:magnify"></ha-icon> Find something
+          </button>` : nothing}
       </div>
     `;
   }
 
-  _renderPoster(item) {
+  _renderPoster(item, showStatus = false) {
     const next = item.next_episode_to_air;
     const days = this._isComingSoon(item) && next?.air_date ? this._daysUntil(next.air_date) : null;
 
@@ -485,6 +615,9 @@ class TmdbShowsCard extends LitElement {
           : html`<div class="poster-fallback">${item.media_type === "tv" ? "📺" : "🎬"}</div>`}
 
         ${this._hasNewEpisode(item) ? html`<span class="new-badge">NEW</span>` : nothing}
+        ${showStatus && this._libraryFilter === "all" ? html`
+          <span class="status-badge" style="background:${STATUS_COLORS[item.status] || "#6d6d6d"}">${STATUS_LABELS[item.status] || item.status}</span>
+        ` : nothing}
 
         ${days !== null ? html`
           <span class="soon-badge">${days === 1 ? "Tomorrow" : `${days}d`}</span>
@@ -641,17 +774,66 @@ class TmdbShowsCard extends LitElement {
     `;
   }
 
+  // Status, progress, rating and notes: only for titles on the list.
+  _renderItemControls(item) {
+    return html`
+      ${this._renderTvButtons(item)}
+
+      <div class="section-label">Status</div>
+      <div class="status-pills">
+        ${["want_to_watch","watching","watched","paused"].map((s) => html`
+          <button class="status-pill ${item.status === s ? "status-pill-active" : ""}"
+            style="${item.status === s ? `background:${STATUS_COLORS[s]};border-color:${STATUS_COLORS[s]}` : ""}"
+            @click=${async () => { await this._updateItem(item.item_id, { status: s }); this._detail = { ...item, status: s }; }}
+          >${STATUS_LABELS[s]}</button>
+        `)}
+      </div>
+
+      ${item.media_type === "tv" ? this._renderProgress(item) : nothing}
+
+      <div class="section-label">Your Rating</div>
+      <div class="stars">
+        ${[1,2,3,4,5,6,7,8,9,10].map((n) => html`
+          <span class="star ${(item.rating||0) >= n ? "star-on" : ""}"
+            @click=${async () => { await this._updateItem(item.item_id, { rating: n }); this._detail = { ...item, rating: n }; }}>★</span>
+        `)}
+        ${item.rating ? html`<span class="rating-num">${item.rating}/10</span>` : nothing}
+      </div>
+
+      <div class="section-label">Notes</div>
+      <textarea class="notes" placeholder="Your notes…" .value=${item.notes || ""}
+        @change=${(e) => { this._updateItem(item.item_id, { notes: e.target.value }); this._detail = { ...item, notes: e.target.value }; }}></textarea>
+    `;
+  }
+
+  _renderPreviewActions(item) {
+    const adding = this._isAdding(item);
+    return html`
+      <div class="preview-actions">
+        <button class="action action-primary" ?disabled=${adding} @click=${() => this._addTitle(item, "want_to_watch")}>
+          <ha-icon icon="${adding ? "mdi:loading" : "mdi:playlist-plus"}"></ha-icon> Add to Up Next
+        </button>
+        <button class="action" ?disabled=${adding} @click=${() => this._addTitle(item, "watching")}>
+          <ha-icon icon="mdi:play-circle-outline"></ha-icon> Watching now
+        </button>
+      </div>
+      ${this._previewLoading ? html`<div class="preview-loading">Loading details…</div>` : nothing}
+    `;
+  }
+
   _renderDetailDialog() {
     const item = this._detail;
     return html`
-      <div class="dialog-overlay" @click=${(e) => e.target === e.currentTarget && (this._detail = null)}>
+      <div class="dialog-overlay" @click=${(e) => e.target === e.currentTarget && this._closeDetail()}>
         <div class="dialog">
           ${item.backdrop_path
             ? html`<div class="dialog-backdrop" style="background-image:url('${item.backdrop_path}')"></div>`
             : nothing}
 
-          <button class="dialog-close" @click=${() => (this._detail = null)}>✕</button>
-          <button class="dialog-delete" title="Remove from watchlist" @click=${() => this._removeItem(item.item_id)}><ha-icon icon="mdi:delete-outline"></ha-icon></button>
+          <button class="dialog-close" @click=${() => this._closeDetail()}>✕</button>
+          ${item.item_id ? html`
+            <button class="dialog-delete" title="Remove from watchlist" @click=${() => this._removeItem(item.item_id)}><ha-icon icon="mdi:delete-outline"></ha-icon></button>
+          ` : nothing}
 
           <div class="dialog-content">
             <div class="dialog-left">
@@ -680,32 +862,7 @@ class TmdbShowsCard extends LitElement {
                 </div>
               ` : nothing}
 
-              ${this._renderTvButtons(item)}
-
-              <div class="section-label">Status</div>
-              <div class="status-pills">
-                ${["want_to_watch","watching","watched","paused"].map((s) => html`
-                  <button class="status-pill ${item.status === s ? "status-pill-active" : ""}"
-                    style="${item.status === s ? `background:${STATUS_COLORS[s]};border-color:${STATUS_COLORS[s]}` : ""}"
-                    @click=${async () => { await this._updateItem(item.item_id, { status: s }); this._detail = { ...item, status: s }; }}
-                  >${STATUS_LABELS[s]}</button>
-                `)}
-              </div>
-
-              ${item.media_type === "tv" ? this._renderProgress(item) : nothing}
-
-              <div class="section-label">Your Rating</div>
-              <div class="stars">
-                ${[1,2,3,4,5,6,7,8,9,10].map((n) => html`
-                  <span class="star ${(item.rating||0) >= n ? "star-on" : ""}"
-                    @click=${async () => { await this._updateItem(item.item_id, { rating: n }); this._detail = { ...item, rating: n }; }}>★</span>
-                `)}
-                ${item.rating ? html`<span class="rating-num">${item.rating}/10</span>` : nothing}
-              </div>
-
-              <div class="section-label">Notes</div>
-              <textarea class="notes" placeholder="Your notes…" .value=${item.notes || ""}
-                @change=${(e) => { this._updateItem(item.item_id, { notes: e.target.value }); this._detail = { ...item, notes: e.target.value }; }}></textarea>
+              ${item.item_id ? this._renderItemControls(item) : this._renderPreviewActions(item)}
 
               ${item.watch_providers && Object.keys(item.watch_providers).length > 0 ? html`
                 <div class="section-label">Where to Watch</div>
@@ -768,7 +925,7 @@ class TmdbShowsCard extends LitElement {
       --mdc-icon-size: 26px; flex-shrink: 0;
       transition: color 0.15s;
     }
-    .manage-btn:hover, .manage-btn-active { color: var(--primary-color); }
+    .manage-btn:hover { color: var(--primary-color); }
     .header-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
     .pill {
       display: flex; align-items: center; gap: 5px;
@@ -845,28 +1002,53 @@ class TmdbShowsCard extends LitElement {
     .reason-chip { padding: 5px 10px; min-height: 30px; border-radius: 14px; border: 1px solid var(--divider-color, #555); background: transparent; color: var(--primary-text-color); cursor: pointer; font-size: 0.76rem; }
     .dismiss-custom { display: flex; gap: 6px; }
     .dismiss-input { flex: 1; min-width: 0; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--divider-color, #555); background: transparent; color: var(--primary-text-color); font-size: 0.8rem; }
-    /* Search */
-    .search-bar { display: flex; flex-direction: column; gap: 8px; padding: 0 16px 10px; }
+    /* Modals (search, library) */
+    .modal-overlay { position: fixed; inset: 0; z-index: 9998; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .modal {
+      background: var(--card-background-color, #1e1e1e); color: var(--primary-text-color);
+      border-radius: 12px; width: 100%; max-width: 760px; height: min(760px, 90vh);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 8px; }
+    .modal-title { font-size: 1.1rem; font-weight: 600; }
+    .modal-close { background: none; border: none; color: var(--secondary-text-color); font-size: 1rem; cursor: pointer; width: 32px; height: 32px; border-radius: 50%; }
+    .modal-close:hover { color: var(--primary-text-color); background: var(--secondary-background-color, #333); }
+    .modal-toolbar { display: flex; flex-direction: column; gap: 8px; padding: 0 16px 10px; }
+    .modal-body { flex: 1; overflow-y: auto; padding: 0 16px 16px; }
+    .modal-note { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 40px 16px; text-align: center; font-size: 0.88rem; color: var(--secondary-text-color); }
+    .modal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+    .modal .toast { margin: 0 16px 12px; }
     .search-input {
-      width: 100%; box-sizing: border-box; padding: 8px 12px; border-radius: 18px;
+      width: 100%; box-sizing: border-box; padding: 9px 14px; border-radius: 20px;
       border: 1px solid var(--divider-color, #555); background: transparent;
-      color: var(--primary-text-color); font-size: 0.9rem; font-family: inherit;
+      color: var(--primary-text-color); font-size: 0.95rem; font-family: inherit;
     }
     .search-input:focus { outline: none; border-color: var(--primary-color); }
-    .search-types { display: flex; gap: 6px; }
-    .search-note { padding: 20px 16px 28px; text-align: center; font-size: 0.85rem; color: var(--secondary-text-color); }
-    .search-list { display: flex; flex-direction: column; gap: 10px; padding: 0 16px 16px; max-height: 480px; overflow-y: auto; }
-    .search-result { display: flex; gap: 10px; align-items: center; }
-    .search-poster { flex-shrink: 0; width: 46px; border-radius: 4px; overflow: hidden; background: var(--secondary-background-color, #222); }
-    .search-poster img { width: 100%; aspect-ratio: 2/3; object-fit: cover; display: block; }
-    .search-poster .poster-fallback { font-size: 1.3rem; }
-    .clickable { cursor: pointer; }
-    .search-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-    .search-title { font-weight: 600; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .search-overview { font-size: 0.75rem; line-height: 1.35; color: var(--secondary-text-color); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .search-action { flex-shrink: 0; }
-    .search-action .action[disabled] { opacity: 0.7; cursor: default; }
-    .status-chip { padding: 5px 10px; min-height: 30px; border-radius: 14px; border: none; color: #fff; cursor: pointer; font-size: 0.74rem; white-space: nowrap; }
+    .chip-row { display: flex; gap: 6px; }
+    .chip-row-scroll { overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+    .chip-row-scroll::-webkit-scrollbar { display: none; }
+    .poster-sub { padding: 0 6px 6px; margin-top: -3px; font-size: 0.68rem; color: var(--secondary-text-color); }
+    .status-badge {
+      position: absolute; top: 5px; left: 5px; max-width: calc(100% - 44px);
+      border-radius: 3px; padding: 1px 5px; font-size: 0.6rem; font-weight: 600; color: #fff;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .quick-add {
+      position: absolute; top: 5px; right: 5px; width: 32px; height: 32px; border-radius: 50%;
+      border: none; background: var(--primary-color); color: #fff; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; --mdc-icon-size: 20px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    }
+    .quick-add[disabled] { opacity: 0.7; cursor: default; }
+    .preview-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 6px; }
+    .preview-actions .action[disabled] { opacity: 0.7; cursor: default; }
+    .preview-loading { font-size: 0.75rem; color: var(--secondary-text-color); }
+    .empty-state .action { margin-top: 8px; }
+    @media (max-width: 600px) {
+      .modal-overlay { padding: 0; }
+      .modal { max-width: none; height: 100%; border-radius: 0; }
+      .modal-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+    }
     .toast { margin: 0 16px 12px; padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; background: var(--secondary-background-color, #333); color: var(--primary-text-color); }
 
     .empty-state {

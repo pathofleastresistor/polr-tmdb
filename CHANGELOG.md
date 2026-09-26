@@ -2,19 +2,33 @@
 
 ## [1.3.0] - 2026-09-26
 
+The card is now the whole UI: search and your full list open as dialogs from
+it, and the sidebar panel is gone.
+
 ### Added
 - `polr_tmdb.search` service: searches TMDB by title (movies, shows, or both
   merged by popularity) and returns each match's TMDB ID, year, overview,
   rating and poster, plus its `item_id` and `status` if it's already on the
   list. Lets automations and assistants find a title before calling
   `add_to_watchlist` or `suggest`
-- Card: search button in the header. Type a title, filter by All / TV /
-  Movies, and tap **Add** to put it in Up Next; titles already on the list show
-  their status and open the detail dialog. Hide it with `search: false`
+- Card: **Search** dialog. Filter by All / TV / Movies; **+** adds a title to
+  Up Next in one tap, and tapping a poster opens a preview (overview, genres,
+  trailer, where to watch) with **Add to Up Next** and **Watching now**.
+  Titles already on the list show their status. Hide it with `search: false`
+- Card: **Library** dialog with the whole list, filtered by status
+- Card: dialogs go full screen on phones and close with Esc
+- `polr_tmdb/preview` websocket command: a title's full details without adding
+  it
+
+### Removed
+- The *Shows & Movies* sidebar panel and the `polr_tmdb/search` websocket
+  command it used. Everything it did is in the card
 
 ### Fixed
 - Adding or suggesting a movie no longer returns a TV show that happens to
   share its TMDB ID (and vice versa); TMDB IDs are only unique per media type
+- The card stopped receiving live updates after Home Assistant re-attached it
+  (for example when switching dashboard views)
 
 ## [1.2.1] - 2026-09-24
 
