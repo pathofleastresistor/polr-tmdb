@@ -11,8 +11,12 @@ from .const import (
     STATUS_SUGGESTED,
     STATUS_WANT_TO_WATCH,
     STATUS_WATCHED,
+    MAX_CAST,
     TMDB_BACKDROP_BASE,
     TMDB_IMAGE_BASE,
+    TMDB_LOGO_BASE,
+    TMDB_PROFILE_BASE,
+    TMDB_STILL_BASE,
 )
 
 
@@ -29,6 +33,38 @@ def _extract_trailer(videos_data: dict) -> str:
         ):
             return f"https://www.youtube.com/watch?v={video['key']}"
     return ""
+
+
+def rank_logos(logos: list[dict], language: str) -> list[dict]:
+    """Order title logos best first: the configured language, then English,
+    then textless art, highest voted within each."""
+    lang = (language or "en").split("-")[0]
+
+    def rank(logo: dict) -> tuple:
+        iso = logo.get("iso_639_1")
+        return (iso != lang, iso != "en", -(logo.get("vote_average") or 0))
+
+    return sorted(logos, key=rank)
+
+
+def _image_url(base: str, path: str | None) -> str:
+    return f"{base}{path}" if path else ""
+
+
+def _extract_cast(credits: dict) -> list[dict]:
+    # Movie credits carry "character"; TV aggregate_credits nest it in "roles".
+    def character(c: dict) -> str:
+        roles = c.get("roles") or [{}]
+        return c.get("character") or roles[0].get("character") or ""
+
+    return [
+        {
+            "name": c.get("name", ""),
+            "character": character(c),
+            "profile_path": _image_url(TMDB_PROFILE_BASE, c.get("profile_path")),
+        }
+        for c in (credits.get("cast") or [])[:MAX_CAST]
+    ]
 
 
 @dataclass
@@ -52,6 +88,10 @@ class WatchlistItem:
     networks: list[str] = field(default_factory=list)   # TV only
     seasons: int = 0            # TV only
     trailer_url: str = ""
+    logo_path: str = ""         # full URL; transparent title art, "" if none
+    tagline: str = ""
+    # Top-billed cast: [{name, character, profile_path (full URL or "")}]
+    cast: list[dict] = field(default_factory=list)
 
     # Timestamps
     added_at: str = field(default_factory=_now_iso)
@@ -105,6 +145,9 @@ class WatchlistItem:
             "networks": self.networks,
             "seasons": self.seasons,
             "trailer_url": self.trailer_url,
+            "logo_path": self.logo_path,
+            "tagline": self.tagline,
+            "cast": self.cast,
             "added_at": self.added_at,
             "updated_at": self.updated_at,
             "rating": self.rating,
@@ -138,6 +181,9 @@ class WatchlistItem:
             networks=data.get("networks", []),
             seasons=data.get("seasons", 0),
             trailer_url=data.get("trailer_url", ""),
+            logo_path=data.get("logo_path", ""),
+            tagline=data.get("tagline", ""),
+            cast=data.get("cast", []),
             added_at=data.get("added_at", _now_iso()),
             updated_at=data.get("updated_at", _now_iso()),
             rating=data.get("rating"),
@@ -168,6 +214,8 @@ class WatchlistItem:
             "networks": self.networks,
             "seasons": self.seasons,
             "trailer_url": self.trailer_url,
+            "logo_path": self.logo_path,
+            "tagline": self.tagline,
             "added_at": self.added_at,
             "updated_at": self.updated_at,
             "rating": self.rating,
@@ -225,6 +273,16 @@ class WatchlistItem:
         )
 
         self.genres = [g["name"] for g in data.get("genres", [])]
+        self.tagline = data.get("tagline") or ""
+
+        # Images and credits are only present when appended to the request;
+        # keep what we had if a response comes back without them.
+        if "images" in data:
+            logos = (data["images"] or {}).get("logos") or []
+            self.logo_path = _image_url(TMDB_LOGO_BASE, logos[0].get("file_path")) if logos else ""
+        credits_key = "aggregate_credits" if is_tv else "credits"
+        if credits_key in data:
+            self.cast = _extract_cast(data[credits_key] or {})
 
         if is_tv:
             self.release_date = data.get("first_air_date", self.release_date)
@@ -242,6 +300,7 @@ class WatchlistItem:
                     "episode_number": raw.get("episode_number"),
                     "name": raw.get("name"),
                     "air_date": raw.get("air_date"),
+                    "still_path": _image_url(TMDB_STILL_BASE, raw.get("still_path")),
                 }
 
             self.last_episode_to_air = _ep(data.get("last_episode_to_air"))

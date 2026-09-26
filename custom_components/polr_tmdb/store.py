@@ -51,8 +51,15 @@ class WatchlistStore:
     def get_by_id(self, item_id: str) -> WatchlistItem | None:
         return self._items.get(item_id)
 
-    def get_by_tmdb_id(self, tmdb_id: int) -> WatchlistItem | None:
-        return next((i for i in self._items.values() if i.tmdb_id == tmdb_id), None)
+    def get_by_tmdb_id(self, tmdb_id: int, media_type: str | None = None) -> WatchlistItem | None:
+        # TMDB ids are only unique per media type: movie 1396 isn't show 1396.
+        return next(
+            (
+                i for i in self._items.values()
+                if i.tmdb_id == tmdb_id and (media_type is None or i.media_type == media_type)
+            ),
+            None,
+        )
 
     # -----------------------------------------------------------------------
     # Mutations

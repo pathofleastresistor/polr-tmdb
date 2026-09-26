@@ -2,15 +2,11 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import logging
-from pathlib import Path
 from typing import Any
 
 import voluptuous as vol
 from homeassistant.components import websocket_api
-from homeassistant.components.frontend import async_register_built_in_panel
-from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import (
     HomeAssistant,
@@ -19,7 +15,7 @@ from homeassistant.core import (
     SupportsResponse,
     callback,
 )
-from homeassistant.exceptions import ServiceValidationError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity_registry import async_get as async_get_entity_registry
 
@@ -32,6 +28,7 @@ from .const import (
     CONF_REGION,
     DOMAIN,
     EVENT_TMDB_SHOWS_UPDATED,
+    MEDIA_TYPE_MOVIE,
     MEDIA_TYPE_TV,
     STATUS_DISMISSED,
     STATUS_SUGGESTED,
@@ -44,23 +41,15 @@ from .discovery import (
     build_watch_link,
     clean_text,
     plan_suggestion,
+    summarize_search_result,
 )
-from .media import _now_iso
+from .media import WatchlistItem, _now_iso
 from .sensor import TmdbShowsSensor
 from .store import WatchlistStore
 
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = ["sensor"]
-
-# The sidebar panel ships inside the integration and is served from here, so a
-# HACS integration install is enough to get it (no separate frontend install).
-FRONTEND_DIR = Path(__file__).parent.resolve() / "frontend"
-FRONTEND_URL = f"/{DOMAIN}_frontend"
-# Kept outside hass.data[DOMAIN], which is dropped on unload: static paths
-# can't be unregistered, so registering again on reload would fail.
-DATA_STATIC_REGISTERED = f"{DOMAIN}_static_registered"
-
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up TMDB Shows & Movies from a config entry."""
@@ -90,9 +79,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # known metadata without waiting on TMDB.
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Register panel
-    await _async_register_panel(hass)
-
     # Register HA services
     _async_register_services(hass)
 
@@ -119,43 +105,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unloaded:
         hass.data.pop(DOMAIN, None)
     return unloaded
-
-
-# ---------------------------------------------------------------------------
-# Panel
-# ---------------------------------------------------------------------------
-
-async def _async_register_panel(hass: HomeAssistant) -> None:
-    """Serve the bundled panel JS and register the sidebar panel."""
-    if not hass.data.get(DATA_STATIC_REGISTERED):
-        await hass.http.async_register_static_paths(
-            [StaticPathConfig(FRONTEND_URL, str(FRONTEND_DIR), False)]
-        )
-        hass.data[DATA_STATIC_REGISTERED] = True
-
-    # Cache-bust with the file's hash so browsers pick up a new build after
-    # an update without a hard refresh.
-    panel_js = FRONTEND_DIR / "panel.js"
-    digest = await hass.async_add_executor_job(
-        lambda: hashlib.sha256(panel_js.read_bytes()).hexdigest()[:12]
-    )
-
-    async_register_built_in_panel(
-        hass,
-        component_name="custom",
-        sidebar_title="Shows & Movies",
-        sidebar_icon="mdi:television-play",
-        frontend_url_path="polr-tmdb",
-        config={
-            "_panel_custom": {
-                "name": "polr-tmdb-panel",
-                "module_url": f"{FRONTEND_URL}/panel.js?v={digest}",
-                "embed_iframe": False,
-                "trust_external": False,
-            }
-        },
-        require_admin=False,
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -194,7 +143,7 @@ async def _do_add(hass: HomeAssistant, tmdb_id: int, media_type: str, status: st
     async_add_entities = hass.data[DOMAIN]["async_add_entities"]
 
     # Check duplicate
-    existing = store.get_by_tmdb_id(tmdb_id)
+    existing = store.get_by_tmdb_id(tmdb_id, media_type)
     if existing:
         return existing.to_dict()
 
@@ -272,7 +221,7 @@ async def _do_suggest(
     Returns {"outcome": "created" | "updated" | "skipped", "item": {...}}.
     """
     store: WatchlistStore = hass.data[DOMAIN]["store"]
-    existing = store.get_by_tmdb_id(tmdb_id)
+    existing = store.get_by_tmdb_id(tmdb_id, media_type)
     plan = plan_suggestion(existing.status if existing else None)
 
     suggestion = {
@@ -314,6 +263,46 @@ async def _do_dismiss(hass: HomeAssistant, item_id: str, reason: str = "") -> di
 # reports "on" is dropped while the launcher is still coming up.
 TV_WAKE_TIMEOUT_S = 12
 TV_SETTLE_S = 4
+
+
+async def _do_search(
+    hass: HomeAssistant, query: str, media_type: str | None, limit: int
+) -> list[dict]:
+    """Search TMDB and mark which results are already on the watchlist.
+
+    With no media_type, movies and shows are searched together and merged by
+    TMDB popularity, so the best-known match comes first either way.
+    """
+    api: TmdbShowsApi = hass.data[DOMAIN]["api"]
+    store: WatchlistStore = hass.data[DOMAIN]["store"]
+    types = [media_type] if media_type else [MEDIA_TYPE_TV, MEDIA_TYPE_MOVIE]
+    batches = await asyncio.gather(*(api.async_search(query, t) for t in types))
+
+    raw = [(r, t) for t, batch in zip(types, batches) for r in batch]
+    raw.sort(key=lambda pair: pair[0].get("popularity") or 0, reverse=True)
+
+    # TMDB ids are only unique per media type, so match on both.
+    on_list = {(i.media_type, i.tmdb_id): i.to_dict() for i in store.get_all()}
+    return [
+        summarize_search_result(r, t, on_list.get((t, r.get("id"))))
+        for r, t in raw[:limit]
+    ]
+
+
+async def _do_preview(hass: HomeAssistant, tmdb_id: int, media_type: str) -> dict:
+    """Fetch a title's details without adding it to the watchlist.
+
+    Returns the same shape as a watchlist item so the card can show it in
+    its detail dialog, with item_id and status set to None.
+    """
+    api: TmdbShowsApi = hass.data[DOMAIN]["api"]
+    if media_type == MEDIA_TYPE_TV:
+        data = await api.async_get_tv_details(tmdb_id)
+    else:
+        data = await api.async_get_movie_details(tmdb_id)
+    item = WatchlistItem(item_id="", tmdb_id=tmdb_id, media_type=media_type)
+    item.update_from_tmdb(data, region=api.get_region())
+    return {**item.to_dict(), "item_id": None, "status": None}
 
 
 async def _sleep(seconds: float) -> None:
@@ -436,6 +425,32 @@ def _async_register_services(hass: HomeAssistant) -> None:
 
     # --- Discovery -------------------------------------------------------
 
+    async def svc_search(call: ServiceCall) -> ServiceResponse:
+        query = call.data["query"].strip()
+        if not query:
+            raise ServiceValidationError("Search query can't be empty")
+        try:
+            results = await _do_search(
+                hass, query, call.data.get("media_type"), call.data["limit"]
+            )
+        except Exception as err:
+            _LOGGER.exception("search_failed: %s", err)
+            raise HomeAssistantError("TMDB search failed") from err
+        return {"results": results}
+
+    hass.services.async_register(
+        DOMAIN,
+        "search",
+        svc_search,
+        schema=vol.Schema({
+            vol.Required("query"): cv.string,
+            vol.Optional("media_type"): vol.In(ALL_MEDIA_TYPES),
+            vol.Optional("limit", default=10): vol.All(vol.Coerce(int), vol.Range(min=1, max=40)),
+        }),
+        supports_response=SupportsResponse.ONLY,
+    )
+
+
     async def svc_suggest(call: ServiceCall) -> ServiceResponse:
         watch_link = _watch_link_or_raise(
             call.data.get("watch_link_url"), call.data.get("watch_link_service")
@@ -507,7 +522,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
 
 
 # ---------------------------------------------------------------------------
-# WebSocket API (used by Lovelace card and panel)
+# WebSocket API (used by the Lovelace card)
 # ---------------------------------------------------------------------------
 
 def _async_register_websocket(hass: HomeAssistant) -> None:
@@ -525,24 +540,24 @@ def _async_register_websocket(hass: HomeAssistant) -> None:
         )
 
     @websocket_api.websocket_command({
-        vol.Required("type"): "polr_tmdb/search",
-        vol.Required("query"): str,
+        vol.Required("type"): "polr_tmdb/preview",
+        vol.Required("tmdb_id"): int,
         vol.Required("media_type"): vol.In(ALL_MEDIA_TYPES),
     })
     @websocket_api.async_response
-    async def ws_search(
+    async def ws_preview(
         hass: HomeAssistant,
         connection: websocket_api.ActiveConnection,
         msg: dict[str, Any],
     ) -> None:
-        api: TmdbShowsApi = hass.data[DOMAIN]["api"]
+        """Full details for a title that isn't on the list, shaped like an item."""
         try:
-            results = await api.async_search(msg["query"], msg["media_type"])
-            connection.send_message(websocket_api.result_message(msg["id"], results))
+            item = await _do_preview(hass, msg["tmdb_id"], msg["media_type"])
+            connection.send_message(websocket_api.result_message(msg["id"], item))
         except Exception as err:
-            _LOGGER.exception("search_failed: %s", err)
+            _LOGGER.exception("preview_failed: %s", err)
             connection.send_message(
-                websocket_api.error_message(msg["id"], "search_failed", "Search request failed")
+                websocket_api.error_message(msg["id"], "preview_failed", "Couldn't load title details")
             )
 
     @websocket_api.websocket_command({
@@ -633,7 +648,7 @@ def _async_register_websocket(hass: HomeAssistant) -> None:
             )
 
     websocket_api.async_register_command(hass, ws_items)
-    websocket_api.async_register_command(hass, ws_search)
+    websocket_api.async_register_command(hass, ws_preview)
     websocket_api.async_register_command(hass, ws_add)
     websocket_api.async_register_command(hass, ws_remove)
     websocket_api.async_register_command(hass, ws_update)

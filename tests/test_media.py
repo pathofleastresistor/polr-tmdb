@@ -193,3 +193,68 @@ class TestUpdateFromTmdb:
         item = make_item()
         item.update_from_tmdb({"name": "Show", "vote_average": 7.666, "videos": {"results": []}})
         assert item.vote_average == 7.7
+
+
+# ---------------------------------------------------------------------------
+# Images and cast
+# ---------------------------------------------------------------------------
+
+from custom_components.polr_tmdb.media import rank_logos  # noqa: E402
+
+
+class TestRichImages:
+    def test_rank_logos_prefers_language_then_english_then_textless(self):
+        logos = [
+            {"file_path": "/none.png", "iso_639_1": None, "vote_average": 9},
+            {"file_path": "/en.png", "iso_639_1": "en", "vote_average": 5},
+            {"file_path": "/fr_low.png", "iso_639_1": "fr", "vote_average": 1},
+            {"file_path": "/fr_high.png", "iso_639_1": "fr", "vote_average": 4},
+        ]
+        assert [l["file_path"] for l in rank_logos(logos, "fr-CA")] == [
+            "/fr_high.png", "/fr_low.png", "/en.png", "/none.png",
+        ]
+
+    def test_logo_tagline_cast_and_stills(self):
+        item = make_item()
+        item.update_from_tmdb({
+            "name": "Breaking Bad",
+            "tagline": "Remember my name",
+            "images": {"logos": [{"file_path": "/logo.png", "iso_639_1": "en"}]},
+            "aggregate_credits": {"cast": [
+                {"name": "Bryan Cranston", "roles": [{"character": "Walter White"}], "profile_path": "/bc.jpg"},
+                {"name": "Extra", "roles": [], "profile_path": None},
+            ]},
+            "last_episode_to_air": {"season_number": 5, "episode_number": 16, "name": "Felina",
+                                    "air_date": "2013-09-29", "still_path": "/still.jpg"},
+            "videos": {"results": []},
+        })
+        assert item.logo_path == "https://image.tmdb.org/t/p/w500/logo.png"
+        assert item.tagline == "Remember my name"
+        assert item.cast == [
+            {"name": "Bryan Cranston", "character": "Walter White",
+             "profile_path": "https://image.tmdb.org/t/p/w185/bc.jpg"},
+            {"name": "Extra", "character": "", "profile_path": ""},
+        ]
+        assert item.last_episode_to_air["still_path"] == "https://image.tmdb.org/t/p/w780/still.jpg"
+
+    def test_movie_credits_and_missing_appends_keep_existing(self):
+        item = make_item(media_type="movie", logo_path="https://x/old.png", cast=[{"name": "A"}])
+        # A response without images/credits appended leaves them alone
+        item.update_from_tmdb({"title": "Film", "videos": {"results": []}})
+        assert item.logo_path == "https://x/old.png"
+        assert item.cast == [{"name": "A"}]
+        item.update_from_tmdb({"title": "Film", "images": {"logos": []},
+                               "credits": {"cast": [{"name": "B", "character": "C"}]}})
+        assert item.logo_path == ""
+        assert item.cast == [{"name": "B", "character": "C", "profile_path": ""}]
+
+    def test_cast_stays_out_of_sensor_attributes(self):
+        item = make_item(cast=[{"name": "A"}], logo_path="https://x/l.png")
+        attrs = item.to_entity_attributes()
+        assert "cast" not in attrs
+        assert attrs["logo_path"] == "https://x/l.png"
+
+    def test_round_trip(self):
+        item = make_item(cast=[{"name": "A"}], logo_path="L", tagline="T")
+        again = WatchlistItem.from_dict(item.to_dict())
+        assert (again.cast, again.logo_path, again.tagline) == ([{"name": "A"}], "L", "T")

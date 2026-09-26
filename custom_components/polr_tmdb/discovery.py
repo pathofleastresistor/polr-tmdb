@@ -12,6 +12,8 @@ from .const import (
     MAX_URL_LENGTH,
     STATUS_DISMISSED,
     STATUS_SUGGESTED,
+    TMDB_BACKDROP_BASE,
+    TMDB_IMAGE_BASE,
 )
 
 # What suggest() should do for a title, given the status of the matching
@@ -62,3 +64,35 @@ def build_watch_link(url: str | None, service: str | None) -> dict | None:
     if parsed.scheme != "https" or not parsed.netloc:
         raise ValueError("Watch link must be an https:// URL")
     return {"service": clean_text(service, 60) or parsed.netloc, "url": url}
+
+
+# Search results carry a short overview: enough to tell titles apart without
+# flooding an automation's or assistant's response.
+MAX_OVERVIEW_LENGTH = 300
+
+
+def summarize_search_result(
+    result: dict, media_type: str, existing: dict | None = None
+) -> dict:
+    """Flatten a raw TMDB search result into the shape the search service returns.
+
+    ``existing`` is the matching watchlist item's dict (or None), so callers
+    can tell at a glance whether the household already has the title and
+    with which item_id to act on it.
+    """
+    date = result.get("release_date") or result.get("first_air_date") or ""
+    rating = result.get("vote_average")
+    poster = result.get("poster_path")
+    backdrop = result.get("backdrop_path")
+    return {
+        "tmdb_id": result.get("id"),
+        "media_type": media_type,
+        "title": result.get("title") or result.get("name") or "Unknown",
+        "year": date[:4] or None,
+        "overview": clean_text(result.get("overview"), MAX_OVERVIEW_LENGTH),
+        "rating": round(rating, 1) if rating else None,
+        "poster_url": f"{TMDB_IMAGE_BASE}{poster}" if poster else None,
+        "backdrop_url": f"{TMDB_BACKDROP_BASE}{backdrop}" if backdrop else None,
+        "item_id": existing["item_id"] if existing else None,
+        "status": existing["status"] if existing else None,
+    }

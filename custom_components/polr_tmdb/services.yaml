@@ -119,6 +119,41 @@ update_rating:
           max: 10
           mode: slider
 
+search:
+  name: Search
+  description: >-
+    Search TMDB for movies and TV shows by title. Returns the matches with
+    their TMDB ID, and for titles already on the list, the item_id and
+    status. Pass the TMDB ID to add_to_watchlist or suggest.
+  fields:
+    query:
+      name: Query
+      description: Title (or part of one) to look for.
+      required: true
+      example: Shrinking
+      selector:
+        text:
+    media_type:
+      name: Media Type
+      description: Limit to movies or TV shows. Searches both when left out.
+      required: false
+      example: tv
+      selector:
+        select:
+          options:
+            - movie
+            - tv
+    limit:
+      name: Limit
+      description: Maximum number of results (defaults to 10).
+      required: false
+      example: 5
+      selector:
+        number:
+          min: 1
+          max: 40
+          mode: box
+
 suggest:
   name: Suggest
   description: >-
