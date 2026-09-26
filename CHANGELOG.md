@@ -26,6 +26,11 @@ it, and the sidebar panel is gone.
   - The detail dialog opens on a full-bleed backdrop with the title logo,
     tagline and a Trailer button, and adds next/latest episode cards with
     stills and a cast row with headshots
+- Card controls now match Home Assistant's tile cards: borderless tinted
+  buttons (42px, 12px corners, following the theme's `--feature-height` /
+  `--feature-border-radius`), segmented controls for sections, search type
+  and status, and filter chips in the Library. The card's `title` now shows
+  in the header above the section tabs
 - Items now store the title logo (best match for your language, then English,
   then textless), tagline, top-billed cast and episode stills. Existing titles
   pick these up on the next metadata refresh (at startup, then daily).

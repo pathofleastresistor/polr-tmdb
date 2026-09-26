@@ -454,26 +454,21 @@ class TmdbShowsCard extends LitElement {
     return html`
       <ha-card>
         <div class="card-header">
-          <div class="section-pills">
-            ${sections.length === 1 ? html`<span class="single-title">${this._config.title}</span>` : sections.map(({ id, label, count }) => html`
-              <button
-                class="pill ${this._section === id ? "pill-active" : ""} ${count === 0 ? "pill-empty" : ""}"
-                @click=${() => (this._section = id)}
-              >
-                ${label}${count > 0 ? html`<span class="pill-count">${count}</span>` : nothing}
-              </button>
-            `)}
-          </div>
+          <span class="card-title">${this._config.title}</span>
           <div class="header-actions">
             ${this._config.search ? html`
-              <button class="manage-btn" title="Search" @click=${() => this._openModal("search")}>
+              <button class="icon-btn" title="Search" aria-label="Search" @click=${() => this._openModal("search")}>
                 <ha-icon icon="mdi:magnify"></ha-icon>
               </button>` : nothing}
-            <button class="manage-btn" title="Library" @click=${() => this._openModal("library")}>
+            <button class="icon-btn" title="Library" aria-label="Library" @click=${() => this._openModal("library")}>
               <ha-icon icon="mdi:bookshelf"></ha-icon>
             </button>
           </div>
         </div>
+        ${sections.length > 1 ? html`
+          <div class="section-bar">
+            ${this._renderSegmented(sections.map(({ id, label, count }) => ({ id, label, count })), this._section, (id) => (this._section = id))}
+          </div>` : nothing}
 
         ${active.length === 0
           ? this._renderEmpty()
@@ -489,6 +484,24 @@ class TmdbShowsCard extends LitElement {
       ${this._modal === "search" ? this._renderSearchModal() : nothing}
       ${this._modal === "library" ? this._renderLibraryModal() : nothing}
       ${this._detail ? this._renderDetailDialog() : nothing}
+    `;
+  }
+
+  // Segmented control in the style of HA's tile card features
+  // (ha-control-select): one tinted track, the selected option filled.
+  _renderSegmented(options, selected, onSelect) {
+    return html`
+      <div class="segmented" role="tablist">
+        ${options.map((o) => html`
+          <button class="segment ${o.id === selected ? "segment-selected" : ""}" role="tab"
+            aria-selected=${o.id === selected ? "true" : "false"}
+            style=${o.id === selected && o.color ? `--segment-color:${o.color}` : ""}
+            @click=${() => onSelect(o.id)}>
+            <span class="segment-label">${o.label}</span>
+            ${o.count ? html`<span class="segment-count">${o.count}</span>` : nothing}
+          </button>
+        `)}
+      </div>
     `;
   }
 
@@ -517,11 +530,7 @@ class TmdbShowsCard extends LitElement {
           .value=${this._searchQuery}
           @input=${(e) => this._onSearchInput(e.target.value)}
           @keydown=${(e) => e.key === "Enter" && this._runSearch()} />
-        <div class="chip-row">
-          ${types.map(([id, label]) => html`
-            <button class="pill ${this._searchType === id ? "pill-active" : ""}" @click=${() => this._setSearchType(id)}>${label}</button>
-          `)}
-        </div>
+        ${this._renderSegmented(types.map(([id, label]) => ({ id, label })), this._searchType, (id) => this._setSearchType(id))}
       </div>
     `;
     const body = this._searching && !results?.length
@@ -563,13 +572,14 @@ class TmdbShowsCard extends LitElement {
     const items = this._libraryItems(this._libraryFilter);
     const toolbar = html`
       <div class="modal-toolbar">
-        <div class="chip-row chip-row-scroll">
+        <div class="chip-row">
           ${filters.map(([id, label]) => {
             const count = this._libraryItems(id).length;
             return html`
-              <button class="pill ${this._libraryFilter === id ? "pill-active" : ""} ${count === 0 ? "pill-empty" : ""}"
+              <button class="chip ${this._libraryFilter === id ? "chip-selected" : ""}"
                 @click=${() => (this._libraryFilter = id)}>
-                ${label}${count > 0 ? html`<span class="pill-count">${count}</span>` : nothing}
+                ${this._libraryFilter === id ? html`<ha-icon icon="mdi:check"></ha-icon>` : nothing}
+                ${label}${count > 0 ? html`<span class="chip-count">${count}</span>` : nothing}
               </button>`;
           })}
         </div>
@@ -719,7 +729,7 @@ class TmdbShowsCard extends LitElement {
       <div class="tv-row">
         <span class="tv-label">Open on</span>
         ${this._config.tvs.map((tv) => html`
-          <button class="tv-btn" @click=${() => this._openOnTv(item, tv)}>
+          <button class="action action-tint" @click=${() => this._openOnTv(item, tv)}>
             <ha-icon icon="mdi:television-play"></ha-icon> ${this._tvName(tv)}
           </button>
         `)}
@@ -732,7 +742,7 @@ class TmdbShowsCard extends LitElement {
       <div class="dismiss-chooser">
         <div class="dismiss-prompt">What's the reason?</div>
         <div class="dismiss-reasons">
-          ${DISMISS_REASONS.map((r) => html`<button class="reason-chip" @click=${() => this._dismiss(item, r)}>${r}</button>`)}
+          ${DISMISS_REASONS.map((r) => html`<button class="chip" @click=${() => this._dismiss(item, r)}>${r}</button>`)}
         </div>
         <div class="dismiss-custom">
           <input class="dismiss-input" type="text" maxlength="200" placeholder="Or say why…"
@@ -819,14 +829,11 @@ class TmdbShowsCard extends LitElement {
       ${this._renderTvButtons(item)}
 
       <div class="section-label">Status</div>
-      <div class="status-pills">
-        ${["want_to_watch","watching","watched","paused"].map((s) => html`
-          <button class="status-pill ${item.status === s ? "status-pill-active" : ""}"
-            style="${item.status === s ? `background:${STATUS_COLORS[s]};border-color:${STATUS_COLORS[s]}` : ""}"
-            @click=${async () => { await this._updateItem(item.item_id, { status: s }); this._detail = { ...item, status: s }; }}
-          >${STATUS_LABELS[s]}</button>
-        `)}
-      </div>
+      ${this._renderSegmented(
+        ["want_to_watch", "watching", "watched", "paused"].map((s) => ({ id: s, label: STATUS_LABELS[s], color: STATUS_COLORS[s] })),
+        item.status,
+        async (s) => { await this._updateItem(item.item_id, { status: s }); this._detail = { ...item, status: s }; },
+      )}
 
       ${item.media_type === "tv" ? this._renderProgress(item) : nothing}
 
@@ -935,7 +942,7 @@ class TmdbShowsCard extends LitElement {
               ${this._renderTitleArt(item, "hero-logo")}
               <div class="hero-meta">${this._metaLine(item)}</div>
               ${item.trailer_url ? html`
-                <a class="trailer-btn" href="${item.trailer_url}" target="_blank" rel="noopener">
+                <a class="action action-light" href="${item.trailer_url}" target="_blank" rel="noopener">
                   <ha-icon icon="mdi:play"></ha-icon> Trailer
                 </a>` : nothing}
             </div>
@@ -1012,37 +1019,87 @@ class TmdbShowsCard extends LitElement {
   // ---------------------------------------------------------------------------
 
   static styles = css`
-    ha-card { display: flex; flex-direction: column; overflow: hidden; }
+    /* Controls follow HA's tile card features: borderless, tinted,
+       42px tall with 12px corners (themes can override both). */
+    :host {
+      --polr-control-height: var(--feature-height, 42px);
+      --polr-radius: var(--feature-border-radius, 12px);
+      --polr-control-bg: color-mix(in srgb, var(--disabled-color, #bdbdbd) 20%, transparent);
+      --polr-control-bg-hover: color-mix(in srgb, var(--disabled-color, #bdbdbd) 32%, transparent);
+      --polr-font-size: var(--ha-font-size-m, 14px);
+      --polr-font-weight: var(--ha-font-weight-medium, 500);
+    }
+    ha-card { display: flex; flex-direction: column; overflow: hidden; container-type: inline-size; }
+    button, a.action { font-family: inherit; -webkit-tap-highlight-color: transparent; }
 
-    .card-header { padding: 16px 16px 8px; font-size: 1.1rem; font-weight: 600; color: var(--ha-card-header-color, var(--primary-text-color)); }
+    .card-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 8px 4px 16px; min-height: 40px; }
+    .card-title { font-size: var(--ha-card-header-font-size, 1.2rem); font-weight: 500; color: var(--ha-card-header-color, var(--primary-text-color)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .header-actions { display: flex; align-items: center; gap: 0; flex-shrink: 0; }
+    /* Same shape as ha-icon-button */
+    .icon-btn {
+      width: 40px; height: 40px; border-radius: 50%; border: none; background: transparent; cursor: pointer;
+      color: var(--secondary-text-color); display: flex; align-items: center; justify-content: center; --mdc-icon-size: 24px;
+      transition: background-color 0.15s, color 0.15s;
+    }
+    .icon-btn:hover { background: var(--polr-control-bg); color: var(--primary-text-color); }
+    .section-bar { padding: 8px 16px 12px; }
 
-    /* Section pills */
-    .card-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 12px 10px 16px; }
-    .section-pills { display: flex; gap: 6px; flex-wrap: wrap; }
-    .manage-btn {
-      background: none; border: none; cursor: pointer; padding: 4px;
-      color: var(--secondary-text-color); border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      --mdc-icon-size: 26px; flex-shrink: 0;
-      transition: color 0.15s;
+    /* Segmented control (ha-control-select) */
+    .segmented {
+      display: flex; height: var(--polr-control-height); border-radius: var(--polr-radius);
+      background: var(--polr-control-bg); overflow: hidden;
     }
-    .manage-btn:hover { color: var(--primary-color); }
-    .header-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
-    .pill {
-      display: flex; align-items: center; gap: 5px;
-      padding: 4px 12px; border-radius: 16px;
-      border: 1px solid var(--divider-color, #555);
-      background: transparent; color: var(--secondary-text-color);
-      cursor: pointer; font-size: 0.78rem; white-space: nowrap; transition: all 0.15s;
+    .segment {
+      flex: 1 1 auto; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 0 8px; border: none; border-radius: var(--polr-radius); background: transparent; cursor: pointer;
+      color: var(--primary-text-color); font-size: var(--polr-font-size); font-weight: var(--polr-font-weight);
+      transition: background-color 0.18s, color 0.18s;
     }
-    .pill-active { background: var(--primary-color); border-color: var(--primary-color); color: #fff; }
-    .pill-empty { opacity: 0.45; }
-    .pill-count {
-      background: rgba(255,255,255,0.25); color: inherit;
-      border-radius: 10px; padding: 0 5px; font-size: 0.72rem; font-weight: 700; min-width: 16px; text-align: center;
+    .segment:hover:not(.segment-selected) { background: var(--polr-control-bg); }
+    .segment-selected { background: var(--segment-color, var(--primary-color)); color: var(--text-primary-color, #fff); }
+    .segment-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .segment-count {
+      flex-shrink: 0; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 9px;
+      font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;
+      background: var(--polr-control-bg-hover); color: inherit;
     }
-    .pill-active .pill-count { background: rgba(255,255,255,0.3); }
-    .pill:not(.pill-active) .pill-count { background: var(--divider-color); color: var(--primary-text-color); }
+    .segment-selected .segment-count { background: rgba(255,255,255,0.28); }
+    /* Narrow cards (phones, sidebar columns): full labels beat counts */
+    @container (max-width: 440px) {
+      .section-bar .segment-count { display: none; }
+      .section-bar .segment { padding: 0 4px; }
+    }
+
+    /* Buttons (ha-control-button) */
+    .action {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      height: var(--polr-control-height); padding: 0 16px; box-sizing: border-box;
+      border: none; border-radius: var(--polr-radius); background: var(--polr-control-bg);
+      color: var(--primary-text-color); cursor: pointer; text-decoration: none; white-space: nowrap;
+      font-size: var(--polr-font-size); font-weight: var(--polr-font-weight); --mdc-icon-size: 20px;
+      transition: background-color 0.15s, filter 0.15s;
+    }
+    .action:hover { background: var(--polr-control-bg-hover); }
+    .action[disabled] { opacity: 0.6; cursor: default; }
+    .action-primary { background: var(--primary-color); color: var(--text-primary-color, #fff); }
+    .action-primary:hover { background: var(--primary-color); filter: brightness(1.08); }
+    .action-tint { background: color-mix(in srgb, var(--primary-color) 20%, transparent); color: var(--primary-color); }
+    .action-tint:hover { background: color-mix(in srgb, var(--primary-color) 30%, transparent); }
+    .action-light { background: rgba(255,255,255,0.92); color: #111; }
+    .action-light:hover { background: #fff; }
+
+    /* Filter chips (ha-filter-chip) */
+    .chip-row { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+    .chip-row::-webkit-scrollbar { display: none; }
+    .chip {
+      flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; box-sizing: border-box;
+      border-radius: 8px; border: 1px solid var(--outline-color, var(--divider-color, #555)); background: transparent;
+      color: var(--primary-text-color); cursor: pointer; font-size: 13px; font-weight: 500; white-space: nowrap; --mdc-icon-size: 16px;
+    }
+    .chip:hover { background: var(--polr-control-bg); }
+    .chip-selected { border-color: transparent; background: color-mix(in srgb, var(--primary-color) 20%, transparent); color: var(--primary-text-color); }
+    .chip-selected:hover { background: color-mix(in srgb, var(--primary-color) 28%, transparent); }
+    .chip-count { font-size: 11px; font-weight: 700; color: var(--secondary-text-color); }
 
     /* Horizontal poster row */
     .poster-row {
@@ -1071,7 +1128,6 @@ class TmdbShowsCard extends LitElement {
       padding: 1px 5px; font-size: 0.62rem; font-weight: 600; color: #fff;
     }
 
-    .single-title { font-size: 1.05rem; font-weight: 600; }
 
     /* Wide art tiles (New, Coming Soon) and suggestion banners */
     .wide-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; padding: 0 16px 16px; }
@@ -1098,27 +1154,25 @@ class TmdbShowsCard extends LitElement {
     .suggestion-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
     .suggestion-meta { font-size: 0.75rem; color: var(--secondary-text-color); }
     .suggestion-reason { font-size: 0.84rem; line-height: 1.45; color: var(--primary-text-color); }
-    .suggestion-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+    .suggestion-actions { display: flex; gap: 8px; margin-top: 6px; }
+    .suggestion-actions .action { flex: 1 1 0; min-width: 0; padding: 0 10px; }
     .suggestion-box { display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem; line-height: 1.45; padding: 8px 10px; border-radius: 8px; margin-bottom: 6px; background: rgba(123,31,162,0.12); border: 1px solid rgba(123,31,162,0.45); }
-    .action {
-      display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; min-height: 32px; box-sizing: border-box;
-      border-radius: 16px; border: 1px solid var(--divider-color, #555); background: transparent;
-      color: var(--primary-text-color); cursor: pointer; font-size: 0.78rem; text-decoration: none; --mdc-icon-size: 16px;
-    }
-    .action-primary { background: var(--primary-color); border-color: var(--primary-color); color: #fff; }
-    .tv-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
+    .tv-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
     .tv-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--secondary-text-color); }
-    .tv-btn {
-      display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; min-height: 32px; box-sizing: border-box;
-      border-radius: 16px; border: 1px solid var(--primary-color); background: transparent;
-      color: var(--primary-color); cursor: pointer; font-size: 0.78rem; --mdc-icon-size: 16px;
-    }
     .dismiss-chooser { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
     .dismiss-prompt { font-size: 0.75rem; color: var(--secondary-text-color); }
-    .dismiss-reasons { display: flex; flex-wrap: wrap; gap: 6px; }
-    .reason-chip { padding: 5px 10px; min-height: 30px; border-radius: 14px; border: 1px solid var(--divider-color, #555); background: transparent; color: var(--primary-text-color); cursor: pointer; font-size: 0.76rem; }
-    .dismiss-custom { display: flex; gap: 6px; }
-    .dismiss-input { flex: 1; min-width: 0; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--divider-color, #555); background: transparent; color: var(--primary-text-color); font-size: 0.8rem; }
+    .dismiss-reasons { display: flex; flex-wrap: wrap; gap: 8px; }
+    .dismiss-custom { display: flex; gap: 8px; }
+    /* Text fields */
+    .search-input, .dismiss-input, .notes, .ep-select {
+      box-sizing: border-box; border-radius: var(--polr-radius); border: 1px solid transparent;
+      background: var(--polr-control-bg); color: var(--primary-text-color); font-family: inherit;
+      font-size: var(--polr-font-size);
+    }
+    .search-input:focus, .dismiss-input:focus, .notes:focus, .ep-select:focus { outline: none; border-color: var(--primary-color); }
+    .search-input { width: 100%; height: var(--polr-control-height); padding: 0 14px; font-size: 16px; }
+    .dismiss-input { flex: 1; min-width: 0; height: var(--polr-control-height); padding: 0 12px; }
+
     /* Modals (search, library) */
     .modal-overlay { position: fixed; inset: 0; z-index: 9998; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; padding: 16px; }
     .modal {
@@ -1135,15 +1189,6 @@ class TmdbShowsCard extends LitElement {
     .modal-note { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 40px 16px; text-align: center; font-size: 0.88rem; color: var(--secondary-text-color); }
     .modal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
     .modal .toast { margin: 0 16px 12px; }
-    .search-input {
-      width: 100%; box-sizing: border-box; padding: 9px 14px; border-radius: 20px;
-      border: 1px solid var(--divider-color, #555); background: transparent;
-      color: var(--primary-text-color); font-size: 0.95rem; font-family: inherit;
-    }
-    .search-input:focus { outline: none; border-color: var(--primary-color); }
-    .chip-row { display: flex; gap: 6px; }
-    .chip-row-scroll { overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
-    .chip-row-scroll::-webkit-scrollbar { display: none; }
     .poster-sub { padding: 0 6px 6px; margin-top: -3px; font-size: 0.68rem; color: var(--secondary-text-color); }
     .status-badge {
       position: absolute; top: 5px; left: 5px; max-width: calc(100% - 44px);
@@ -1157,8 +1202,7 @@ class TmdbShowsCard extends LitElement {
       box-shadow: 0 2px 6px rgba(0,0,0,0.4);
     }
     .quick-add[disabled] { opacity: 0.7; cursor: default; }
-    .preview-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 6px; }
-    .preview-actions .action[disabled] { opacity: 0.7; cursor: default; }
+    .preview-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 8px; }
     .preview-loading { font-size: 0.75rem; color: var(--secondary-text-color); }
     .empty-state .action { margin-top: 8px; }
     @media (max-width: 600px) {
@@ -1184,15 +1228,15 @@ class TmdbShowsCard extends LitElement {
     .dialog-btn:hover { background: rgba(0,0,0,0.8); }
     .hero { position: relative; aspect-ratio: 16/9; max-height: 400px; width: 100%; overflow: hidden; background: #000; }
     .hero-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 20%; }
+    /* Always darkens (never fades to the card colour): the caption is white
+       in light themes too. */
     .hero-fade { position: absolute; inset: 0; background:
-      linear-gradient(to top, var(--card-background-color, #1e1e1e) 0%, rgba(0,0,0,0.25) 55%, rgba(0,0,0,0) 75%),
-      linear-gradient(to right, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 60%); }
+      linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.35) 50%, rgba(0,0,0,0) 75%),
+      linear-gradient(to right, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 60%); }
     .hero-caption { position: absolute; left: 20px; right: 20px; bottom: 14px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; color: #fff; }
     .hero-logo.title-logo { max-width: min(60%, 360px); max-height: 110px; }
     .hero-logo.title-text { font-size: 1.7rem; }
     .hero-meta { font-size: 0.82rem; opacity: 0.92; text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
-    .trailer-btn { display: inline-flex; align-items: center; gap: 4px; padding: 6px 14px 6px 10px; border-radius: 18px; background: rgba(255,255,255,0.92); color: #111; text-decoration: none; font-size: 0.8rem; font-weight: 600; --mdc-icon-size: 18px; }
-    .trailer-btn:hover { background: #fff; }
     .tagline { margin: 0 0 6px; font-style: italic; font-size: 0.88rem; color: var(--secondary-text-color); }
     .episode-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin: 4px 0 8px; }
     .episode-card { display: flex; gap: 10px; align-items: center; padding: 6px; border-radius: 8px; background: var(--secondary-background-color, #2a2a2a); }
@@ -1207,21 +1251,19 @@ class TmdbShowsCard extends LitElement {
     .cast-photo-empty { display: flex; align-items: center; justify-content: center; color: var(--secondary-text-color); --mdc-icon-size: 30px; }
     .cast-name { font-size: 0.72rem; font-weight: 600; line-height: 1.2; }
     .cast-character { font-size: 0.66rem; color: var(--secondary-text-color); line-height: 1.2; margin-top: 1px; }
-    .dialog-content { display: flex; gap: 16px; padding: 6px 20px 20px; }
+    .dialog-content { display: flex; gap: 16px; padding: 16px 20px 20px; }
     .dialog-left { flex-shrink: 0; }
     .dialog-poster { width: 110px; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.45); }
     .dialog-right { flex: 1; min-width: 0; }
     .dialog-overview { font-size: 0.86rem; line-height: 1.55; margin: 0 0 10px; }
     .section-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--secondary-text-color); margin: 10px 0 5px; }
-    .status-pills { display: flex; flex-wrap: wrap; gap: 5px; }
-    .status-pill { padding: 3px 10px; border-radius: 14px; border: 1px solid var(--divider-color, #555); background: transparent; color: var(--primary-text-color); cursor: pointer; font-size: 0.75rem; }
-    .status-pill-active { color: #fff; }
     .progress-row { display: flex; gap: 12px; flex-wrap: wrap; }
     .select-label { display: flex; flex-direction: column; gap: 3px; flex: 1; font-size: 0.78rem; }
     .select-label span { font-size: 0.7rem; color: var(--secondary-text-color); text-transform: uppercase; letter-spacing: 0.5px; }
-    .ep-select { width: 100%; padding: 5px 7px; border-radius: 5px; border: 1px solid var(--divider-color, #555); background: var(--card-background-color, #1e1e1e); color: var(--primary-text-color); font-size: 0.82rem; cursor: pointer; }
+    .ep-select { width: 100%; height: var(--polr-control-height); padding: 0 10px; cursor: pointer; }
+    .ep-select option { background: var(--card-background-color, #1e1e1e); color: var(--primary-text-color); }
     .ep-select:disabled { opacity: 0.5; cursor: default; }
-    .new-ep-alert { font-size: 0.78rem; padding: 5px 8px; border-radius: 5px; margin-bottom: 5px; background: rgba(255,152,0,0.15); border: 1px solid #ff9800; color: #ff9800; }
+    .new-ep-alert { font-size: 0.85rem; padding: 10px 12px; border-radius: var(--polr-radius); margin-bottom: 6px; background: color-mix(in srgb, var(--warning-color, #ff9800) 18%, transparent); color: var(--warning-color, #ff9800); }
     .new-ep-alert strong { color: var(--primary-text-color); }
     .upcoming-ep { font-size: 0.75rem; color: var(--secondary-text-color); margin-bottom: 5px; }
     .ep-latest-hint { font-size: 0.72rem; color: var(--secondary-text-color); margin-top: 3px; }
@@ -1229,7 +1271,7 @@ class TmdbShowsCard extends LitElement {
     .star { font-size: 1.3rem; cursor: pointer; color: var(--secondary-text-color, #555); user-select: none; }
     .star-on { color: #ffd600; }
     .rating-num { margin-left: 8px; font-size: 0.8rem; color: var(--secondary-text-color); }
-    .notes { width: 100%; box-sizing: border-box; padding: 6px 8px; border-radius: 5px; border: 1px solid var(--divider-color, #555); background: transparent; color: var(--primary-text-color); font-size: 0.82rem; resize: vertical; min-height: 54px; font-family: inherit; }
+    .notes { width: 100%; padding: 10px 12px; resize: vertical; min-height: 64px; }
     .providers { display: flex; flex-direction: column; gap: 5px; margin-bottom: 4px; }
     .provider-row { display: flex; align-items: center; gap: 6px; }
     .provider-type { font-size: 0.7rem; color: var(--secondary-text-color); min-width: 38px; text-transform: uppercase; letter-spacing: 0.4px; }
