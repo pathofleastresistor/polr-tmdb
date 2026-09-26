@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import TMDB_API_BASE
+from .media import rank_logos
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -99,18 +100,27 @@ class TmdbShowsApi:
         return results
 
     async def async_get_movie_details(self, tmdb_id: int) -> dict[str, Any]:
-        """Fetch full movie details including videos and watch providers."""
-        return await self._get(
-            f"/movie/{tmdb_id}",
-            {"append_to_response": "videos,watch/providers"},
-        )
+        """Fetch full movie details including videos, providers, logos and cast."""
+        return await self._get_details(f"/movie/{tmdb_id}", "credits")
 
     async def async_get_tv_details(self, tmdb_id: int) -> dict[str, Any]:
-        """Fetch full TV show details including videos and watch providers."""
-        return await self._get(
-            f"/tv/{tmdb_id}",
-            {"append_to_response": "videos,watch/providers"},
+        """Fetch full TV show details including videos, providers, logos and cast."""
+        return await self._get_details(f"/tv/{tmdb_id}", "aggregate_credits")
+
+    async def _get_details(self, path: str, credits: str) -> dict[str, Any]:
+        lang = self._language.split("-")[0]
+        data = await self._get(
+            path,
+            {
+                "append_to_response": f"videos,watch/providers,images,{credits}",
+                # Title logos in our language, English, or textless
+                "include_image_language": f"{lang},en,null",
+            },
         )
+        images = data.get("images") or {}
+        if images.get("logos"):
+            images["logos"] = rank_logos(images["logos"], lang)
+        return data
 
     def get_region(self) -> str:
         """Return the configured region code."""

@@ -12,6 +12,7 @@ from .const import (
     MAX_URL_LENGTH,
     STATUS_DISMISSED,
     STATUS_SUGGESTED,
+    TMDB_BACKDROP_BASE,
     TMDB_IMAGE_BASE,
 )
 
@@ -82,6 +83,7 @@ def summarize_search_result(
     date = result.get("release_date") or result.get("first_air_date") or ""
     rating = result.get("vote_average")
     poster = result.get("poster_path")
+    backdrop = result.get("backdrop_path")
     return {
         "tmdb_id": result.get("id"),
         "media_type": media_type,
@@ -90,6 +92,7 @@ def summarize_search_result(
         "overview": clean_text(result.get("overview"), MAX_OVERVIEW_LENGTH),
         "rating": round(rating, 1) if rating else None,
         "poster_url": f"{TMDB_IMAGE_BASE}{poster}" if poster else None,
+        "backdrop_url": f"{TMDB_BACKDROP_BASE}{backdrop}" if backdrop else None,
         "item_id": existing["item_id"] if existing else None,
         "status": existing["status"] if existing else None,
     }

@@ -12,7 +12,7 @@ A custom Home Assistant integration and Lovelace card for managing your househol
 - Track movies and TV shows with statuses: Want to Watch, Watching, Watched, Paused
 - Suggestions with reasons, and a remembered "not for us" list
 - Watch links that open a title in its streaming app on a Google TV
-- TMDB metadata auto-fetched: posters, backdrops, ratings, genres, trailers, network info
+- TMDB artwork and metadata auto-fetched: posters, backdrops, title logos, episode stills, cast photos, ratings, genres, trailers, network info
 - TV show progress tracking (current season + episode)
 - New episode detection with badges
 - Personal ratings (1–10) and notes
@@ -64,7 +64,7 @@ data:
 response_variable: found
 ```
 Each result has `tmdb_id`, `media_type`, `title`, `year`, `overview`,
-`rating`, `poster_url`, and — for titles already on the list — `item_id` and
+`rating`, `poster_url`, `backdrop_url`, and — for titles already on the list — `item_id` and
 `status` (both `null` otherwise).
 
 ```yaml

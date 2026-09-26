@@ -19,6 +19,18 @@ it, and the sidebar panel is gone.
 - Card: dialogs go full screen on phones and close with Esc
 - `polr_tmdb/preview` websocket command: a title's full details without adding
   it
+- Richer TMDB artwork throughout the card:
+  - **New** and **Coming Soon** are wide tiles: the latest episode's still (or
+    the show's backdrop) with the show's title logo and the episode on top
+  - **Suggested** titles get a backdrop banner with their logo
+  - The detail dialog opens on a full-bleed backdrop with the title logo,
+    tagline and a Trailer button, and adds next/latest episode cards with
+    stills and a cast row with headshots
+- Items now store the title logo (best match for your language, then English,
+  then textless), tagline, top-billed cast and episode stills. Existing titles
+  pick these up on the next metadata refresh (at startup, then daily).
+  `logo_path` and `tagline` are also sensor attributes; cast is left out to
+  keep sensor state small
 
 ### Removed
 - The *Shows & Movies* sidebar panel and the `polr_tmdb/search` websocket

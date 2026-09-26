@@ -319,7 +319,7 @@ class TmdbShowsCard extends LitElement {
     this._detail = {
       item_id: null, status: null,
       tmdb_id: result.tmdb_id, media_type: result.media_type, title: result.title,
-      poster_path: result.poster_url, overview: result.overview,
+      poster_path: result.poster_url, backdrop_path: result.backdrop_url, overview: result.overview,
       vote_average: result.rating, release_date: result.year || "",
     };
     this._previewLoading = true;
@@ -479,7 +479,9 @@ class TmdbShowsCard extends LitElement {
           ? this._renderEmpty()
           : this._section === "suggested"
             ? html`<div class="suggestion-list">${repeat(active, (i) => i.item_id, (item) => this._renderSuggestion(item))}</div>`
-            : html`<div class="poster-row">${repeat(active, (i) => i.item_id, (item) => this._renderPoster(item))}</div>`}
+            : this._section === "new" || this._section === "soon"
+              ? html`<div class="wide-row">${repeat(active, (i) => i.item_id, (item) => this._renderWideTile(item))}</div>`
+              : html`<div class="poster-row">${repeat(active, (i) => i.item_id, (item) => this._renderPoster(item))}</div>`}
 
         ${this._toast ? html`<div class="toast">${this._toast}</div>` : nothing}
       </ha-card>
@@ -604,6 +606,40 @@ class TmdbShowsCard extends LitElement {
     `;
   }
 
+  // Title art: the transparent TMDB logo when there is one, else the name.
+  _renderTitleArt(item, cls = "") {
+    return item.logo_path
+      ? html`<img class="title-logo ${cls}" src="${item.logo_path}" alt="${item.title}" loading="lazy" />`
+      : html`<div class="title-text ${cls}">${item.title}</div>`;
+  }
+
+  _epLabel(ep) {
+    return ep ? `S${ep.season_number} · E${ep.episode_number}${ep.name ? ` · ${ep.name}` : ""}` : "";
+  }
+
+  // Landscape tile for New / Coming Soon: the episode still when TMDB has
+  // one, the show's backdrop otherwise, with the title logo on top.
+  _renderWideTile(item) {
+    const soon = this._isComingSoon(item);
+    const ep = soon ? item.next_episode_to_air : item.last_episode_to_air;
+    const days = soon && ep?.air_date ? this._daysUntil(ep.air_date) : null;
+    const image = (!soon && ep?.still_path) || item.backdrop_path || item.poster_path;
+    return html`
+      <div class="wide-tile" @click=${() => (this._detail = item)}>
+        ${image
+          ? html`<img class="wide-img" src="${image}" alt="" loading="lazy" />`
+          : html`<div class="wide-img wide-fallback">${item.media_type === "tv" ? "📺" : "🎬"}</div>`}
+        <div class="wide-fade"></div>
+        ${this._hasNewEpisode(item) ? html`<span class="new-badge">NEW</span>` : nothing}
+        ${days !== null ? html`<span class="soon-badge">${days === 1 ? "Tomorrow" : `In ${days} days`}</span>` : nothing}
+        <div class="wide-caption">
+          ${this._renderTitleArt(item, "wide-logo")}
+          ${ep ? html`<div class="wide-sub">${this._epLabel(ep)}</div>` : nothing}
+        </div>
+      </div>
+    `;
+  }
+
   _renderPoster(item, showStatus = false) {
     const next = item.next_episode_to_air;
     const days = this._isComingSoon(item) && next?.air_date ? this._daysUntil(next.air_date) : null;
@@ -644,14 +680,17 @@ class TmdbShowsCard extends LitElement {
     ].filter(Boolean).join(" · ");
     return html`
       <div class="suggestion">
-        <div class="suggestion-poster" @click=${() => (this._detail = item)}>
-          ${item.poster_path
-            ? html`<img src="${item.poster_path}" alt="${item.title}" loading="lazy" />`
-            : html`<div class="poster-fallback">${item.media_type === "tv" ? "📺" : "🎬"}</div>`}
+        <div class="suggestion-banner" @click=${() => (this._detail = item)}>
+          ${item.backdrop_path || item.poster_path
+            ? html`<img class="wide-img ${item.backdrop_path ? "" : "img-blur"}" src="${item.backdrop_path || item.poster_path}" alt="" loading="lazy" />`
+            : html`<div class="wide-img wide-fallback">${item.media_type === "tv" ? "📺" : "🎬"}</div>`}
+          <div class="wide-fade"></div>
+          <div class="wide-caption">
+            ${this._renderTitleArt(item, "wide-logo")}
+            <div class="wide-sub">${meta}</div>
+          </div>
         </div>
         <div class="suggestion-body">
-          <div class="suggestion-title" @click=${() => (this._detail = item)}>${item.title}</div>
-          <div class="suggestion-meta">${meta}</div>
           ${item.suggestion?.reason ? html`<div class="suggestion-reason">${item.suggestion.reason}</div>` : nothing}
           ${this._dismissing === item.item_id
             ? this._renderDismissChooser(item)
@@ -821,30 +860,95 @@ class TmdbShowsCard extends LitElement {
     `;
   }
 
+  _metaLine(item) {
+    const hours = Math.floor((item.runtime || 0) / 60), mins = (item.runtime || 0) % 60;
+    const length = item.media_type === "tv"
+      ? (item.seasons ? `${item.seasons} season${item.seasons === 1 ? "" : "s"}` : null)
+      : (item.runtime ? (hours ? `${hours}h ${mins}m` : `${mins}m`) : null);
+    return [
+      item.release_date?.slice(0, 4),
+      length,
+      item.genres?.slice(0, 2).join(", "),
+      item.vote_average ? `★ ${Number(item.vote_average).toFixed(1)}` : null,
+      item.networks?.[0],
+    ].filter(Boolean).join(" · ");
+  }
+
+  _renderEpisodeCards(item) {
+    const cards = [
+      ["Next episode", item.next_episode_to_air],
+      ["Latest episode", item.last_episode_to_air],
+    ].filter(([, ep]) => ep?.episode_number);
+    if (!cards.length) return nothing;
+    return html`
+      <div class="episode-cards">
+        ${cards.map(([label, ep]) => html`
+          <div class="episode-card">
+            ${ep.still_path
+              ? html`<img class="episode-still" src="${ep.still_path}" alt="" loading="lazy" />`
+              : html`<div class="episode-still episode-still-empty"><ha-icon icon="mdi:television-classic"></ha-icon></div>`}
+            <div class="episode-info">
+              <div class="episode-label">${label}${ep.air_date ? html` · ${fmtDate(ep.air_date)}` : nothing}</div>
+              <div class="episode-name">${this._epLabel(ep)}</div>
+            </div>
+          </div>
+        `)}
+      </div>
+    `;
+  }
+
+  _renderCast(item) {
+    return html`
+      <div class="section-label">Cast</div>
+      <div class="cast-row">
+        ${item.cast.map((c) => html`
+          <div class="cast-member">
+            ${c.profile_path
+              ? html`<img class="cast-photo" src="${c.profile_path}" alt="${c.name}" loading="lazy" />`
+              : html`<div class="cast-photo cast-photo-empty"><ha-icon icon="mdi:account"></ha-icon></div>`}
+            <div class="cast-name">${c.name}</div>
+            ${c.character ? html`<div class="cast-character">${c.character}</div>` : nothing}
+          </div>
+        `)}
+      </div>
+    `;
+  }
+
   _renderDetailDialog() {
     const item = this._detail;
     return html`
       <div class="dialog-overlay" @click=${(e) => e.target === e.currentTarget && this._closeDetail()}>
         <div class="dialog">
-          ${item.backdrop_path
-            ? html`<div class="dialog-backdrop" style="background-image:url('${item.backdrop_path}')"></div>`
-            : nothing}
+          <div class="dialog-topbar">
+            ${item.item_id ? html`
+              <button class="dialog-btn" title="Remove from watchlist" @click=${() => this._removeItem(item.item_id)}><ha-icon icon="mdi:delete-outline"></ha-icon></button>
+            ` : nothing}
+            <button class="dialog-btn" title="Close" @click=${() => this._closeDetail()}>✕</button>
+          </div>
 
-          <button class="dialog-close" @click=${() => this._closeDetail()}>✕</button>
-          ${item.item_id ? html`
-            <button class="dialog-delete" title="Remove from watchlist" @click=${() => this._removeItem(item.item_id)}><ha-icon icon="mdi:delete-outline"></ha-icon></button>
-          ` : nothing}
+          <div class="hero">
+            ${item.backdrop_path || item.poster_path
+              ? html`<img class="hero-img ${item.backdrop_path ? "" : "img-blur"}" src="${item.backdrop_path || item.poster_path}" alt="" />`
+              : nothing}
+            <div class="hero-fade"></div>
+            <div class="hero-caption">
+              ${this._renderTitleArt(item, "hero-logo")}
+              <div class="hero-meta">${this._metaLine(item)}</div>
+              ${item.trailer_url ? html`
+                <a class="trailer-btn" href="${item.trailer_url}" target="_blank" rel="noopener">
+                  <ha-icon icon="mdi:play"></ha-icon> Trailer
+                </a>` : nothing}
+            </div>
+          </div>
 
           <div class="dialog-content">
-            <div class="dialog-left">
-              ${item.poster_path ? html`<img class="dialog-poster" src="${item.poster_path}" alt="${item.title}" />` : nothing}
-            </div>
+            ${item.poster_path && item.backdrop_path ? html`
+              <div class="dialog-left"><img class="dialog-poster" src="${item.poster_path}" alt="${item.title}" /></div>
+            ` : nothing}
             <div class="dialog-right">
-              <div class="dialog-title">${item.title}</div>
-              <div class="dialog-meta">
-                ${[item.release_date?.slice(0,4), item.genres?.slice(0,3).join(", "), item.vote_average ? `★ ${item.vote_average}` : null, item.networks?.[0]].filter(Boolean).join(" · ")}
-              </div>
+              ${item.tagline ? html`<p class="tagline">${item.tagline}</p>` : nothing}
               <p class="dialog-overview">${item.overview}</p>
+              ${item.media_type === "tv" ? this._renderEpisodeCards(item) : nothing}
 
               ${item.status === "suggested" ? html`
                 <div class="suggestion-box">
@@ -863,6 +967,8 @@ class TmdbShowsCard extends LitElement {
               ` : nothing}
 
               ${item.item_id ? this._renderItemControls(item) : this._renderPreviewActions(item)}
+
+              ${item.cast?.length ? this._renderCast(item) : nothing}
 
               ${item.watch_providers && Object.keys(item.watch_providers).length > 0 ? html`
                 <div class="section-label">Where to Watch</div>
@@ -894,11 +1000,6 @@ class TmdbShowsCard extends LitElement {
                 </div>
               ` : nothing}
 
-              ${item.trailer_url ? html`
-                <div class="dialog-footer">
-                  <a class="trailer-btn" href="${item.trailer_url}" target="_blank" rel="noopener">▶ Trailer</a>
-                </div>
-              ` : nothing}
             </div>
           </div>
         </div>
@@ -972,13 +1073,29 @@ class TmdbShowsCard extends LitElement {
 
     .single-title { font-size: 1.05rem; font-weight: 600; }
 
+    /* Wide art tiles (New, Coming Soon) and suggestion banners */
+    .wide-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; padding: 0 16px 16px; }
+    .wide-tile { position: relative; aspect-ratio: 16/9; border-radius: 10px; overflow: hidden; cursor: pointer; background: var(--secondary-background-color, #222); }
+    .wide-tile:hover .wide-img { transform: scale(1.04); }
+    .wide-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.35s ease; }
+    .wide-fallback { display: flex; align-items: center; justify-content: center; font-size: 2.5rem; }
+    .img-blur { filter: blur(18px) brightness(0.7); transform: scale(1.2); }
+    .wide-fade { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.35) 45%, rgba(0,0,0,0) 70%); }
+    .wide-caption { position: absolute; left: 12px; right: 12px; bottom: 10px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; color: #fff; }
+    .title-logo { display: block; object-fit: contain; object-position: left bottom; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.6)); }
+    .title-text { font-weight: 700; line-height: 1.15; text-shadow: 0 2px 8px rgba(0,0,0,0.7); }
+    .wide-logo.title-logo { max-width: 65%; max-height: 52px; }
+    .wide-logo.title-text { font-size: 1.1rem; }
+    .wide-sub { font-size: 0.75rem; opacity: 0.9; text-shadow: 0 1px 4px rgba(0,0,0,0.8); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+    .wide-tile .new-badge, .wide-tile .soon-badge { top: 8px; right: 8px; font-size: 0.66rem; padding: 2px 7px; }
+
     /* Suggestions */
-    .suggestion-list { display: flex; flex-direction: column; gap: 14px; padding: 4px 16px 16px; }
-    .suggestion { display: flex; gap: 12px; align-items: flex-start; }
-    .suggestion-poster { flex-shrink: 0; width: 84px; border-radius: 6px; overflow: hidden; cursor: pointer; background: var(--secondary-background-color, #222); }
-    .suggestion-poster img { width: 100%; aspect-ratio: 2/3; object-fit: cover; display: block; }
+    .suggestion-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; padding: 4px 16px 16px; }
+    .suggestion { display: flex; flex-direction: column; border-radius: 10px; overflow: hidden; background: var(--secondary-background-color, #222); }
+    .suggestion-banner { position: relative; aspect-ratio: 16/9; cursor: pointer; overflow: hidden; }
+    .suggestion-banner:hover .wide-img { transform: scale(1.03); }
+    .suggestion .suggestion-body { padding: 10px 12px 12px; }
     .suggestion-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-    .suggestion-title { font-weight: 600; font-size: 0.98rem; cursor: pointer; }
     .suggestion-meta { font-size: 0.75rem; color: var(--secondary-text-color); }
     .suggestion-reason { font-size: 0.84rem; line-height: 1.45; color: var(--primary-text-color); }
     .suggestion-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
@@ -1061,18 +1178,40 @@ class TmdbShowsCard extends LitElement {
 
     /* Dialog */
     .dialog-overlay { position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; padding: 16px; }
-    .dialog { background: var(--card-background-color, #1e1e1e); border-radius: 12px; width: 100%; max-width: 640px; max-height: 90vh; overflow-y: auto; position: relative; }
-    .dialog-backdrop { width: 100%; height: 180px; background-size: cover; background-position: center top; border-radius: 12px 12px 0 0; }
-    .dialog-close { position: sticky; top: 8px; float: right; margin: 8px 8px 0 0; background: rgba(0,0,0,0.6); border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; color: #fff; font-size: 0.9rem; z-index: 1; }
-    .dialog-delete { position: sticky; top: 8px; float: right; margin: 8px 8px 0 0; background: rgba(0,0,0,0.6); border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; z-index: 1; opacity: 0.6; display: flex; align-items: center; justify-content: center; --mdc-icon-size: 18px; color: #fff; }
-    .dialog-delete:hover { opacity: 1; }
-    .dialog-content { display: flex; gap: 14px; padding: 14px; clear: both; }
+    .dialog { background: var(--card-background-color, #1e1e1e); border-radius: 14px; width: 100%; max-width: 720px; max-height: 92vh; overflow-y: auto; position: relative; }
+    .dialog-topbar { position: sticky; top: 0; height: 0; z-index: 3; display: flex; justify-content: flex-end; gap: 6px; padding-right: 10px; }
+    .dialog-btn { margin-top: 10px; width: 34px; height: 34px; border-radius: 50%; border: none; cursor: pointer; background: rgba(0,0,0,0.55); color: #fff; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; --mdc-icon-size: 18px; backdrop-filter: blur(6px); }
+    .dialog-btn:hover { background: rgba(0,0,0,0.8); }
+    .hero { position: relative; aspect-ratio: 16/9; max-height: 400px; width: 100%; overflow: hidden; background: #000; }
+    .hero-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 20%; }
+    .hero-fade { position: absolute; inset: 0; background:
+      linear-gradient(to top, var(--card-background-color, #1e1e1e) 0%, rgba(0,0,0,0.25) 55%, rgba(0,0,0,0) 75%),
+      linear-gradient(to right, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 60%); }
+    .hero-caption { position: absolute; left: 20px; right: 20px; bottom: 14px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; color: #fff; }
+    .hero-logo.title-logo { max-width: min(60%, 360px); max-height: 110px; }
+    .hero-logo.title-text { font-size: 1.7rem; }
+    .hero-meta { font-size: 0.82rem; opacity: 0.92; text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
+    .trailer-btn { display: inline-flex; align-items: center; gap: 4px; padding: 6px 14px 6px 10px; border-radius: 18px; background: rgba(255,255,255,0.92); color: #111; text-decoration: none; font-size: 0.8rem; font-weight: 600; --mdc-icon-size: 18px; }
+    .trailer-btn:hover { background: #fff; }
+    .tagline { margin: 0 0 6px; font-style: italic; font-size: 0.88rem; color: var(--secondary-text-color); }
+    .episode-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin: 4px 0 8px; }
+    .episode-card { display: flex; gap: 10px; align-items: center; padding: 6px; border-radius: 8px; background: var(--secondary-background-color, #2a2a2a); }
+    .episode-still { width: 96px; aspect-ratio: 16/9; border-radius: 5px; object-fit: cover; flex-shrink: 0; }
+    .episode-still-empty { display: flex; align-items: center; justify-content: center; background: rgba(127,127,127,0.2); color: var(--secondary-text-color); --mdc-icon-size: 22px; }
+    .episode-info { min-width: 0; }
+    .episode-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--secondary-text-color); }
+    .episode-name { font-size: 0.8rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .cast-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin; }
+    .cast-member { flex: 0 0 76px; text-align: center; }
+    .cast-photo { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; object-position: center 20%; display: block; margin: 0 auto 4px; background: var(--secondary-background-color, #2a2a2a); }
+    .cast-photo-empty { display: flex; align-items: center; justify-content: center; color: var(--secondary-text-color); --mdc-icon-size: 30px; }
+    .cast-name { font-size: 0.72rem; font-weight: 600; line-height: 1.2; }
+    .cast-character { font-size: 0.66rem; color: var(--secondary-text-color); line-height: 1.2; margin-top: 1px; }
+    .dialog-content { display: flex; gap: 16px; padding: 6px 20px 20px; }
     .dialog-left { flex-shrink: 0; }
-    .dialog-poster { width: 90px; border-radius: 5px; }
+    .dialog-poster { width: 110px; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.45); }
     .dialog-right { flex: 1; min-width: 0; }
-    .dialog-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 4px; }
-    .dialog-meta { font-size: 0.8rem; color: var(--secondary-text-color); margin-bottom: 6px; }
-    .dialog-overview { font-size: 0.82rem; line-height: 1.5; max-height: 80px; overflow-y: auto; margin: 0 0 8px; }
+    .dialog-overview { font-size: 0.86rem; line-height: 1.55; margin: 0 0 10px; }
     .section-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--secondary-text-color); margin: 10px 0 5px; }
     .status-pills { display: flex; flex-wrap: wrap; gap: 5px; }
     .status-pill { padding: 3px 10px; border-radius: 14px; border: 1px solid var(--divider-color, #555); background: transparent; color: var(--primary-text-color); cursor: pointer; font-size: 0.75rem; }
@@ -1095,9 +1234,15 @@ class TmdbShowsCard extends LitElement {
     .provider-row { display: flex; align-items: center; gap: 6px; }
     .provider-type { font-size: 0.7rem; color: var(--secondary-text-color); min-width: 38px; text-transform: uppercase; letter-spacing: 0.4px; }
     .provider-logo { width: 30px; height: 30px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
-    .dialog-footer { display: flex; margin-top: 12px; }
-    .trailer-btn { padding: 5px 14px; border-radius: 16px; background: #c62828; color: #fff; text-decoration: none; font-size: 0.8rem; }
-    @media (max-width: 420px) { .dialog-content { flex-direction: column; } .dialog-poster { width: 70px; } }
+    @media (max-width: 600px) {
+      .dialog-overlay { padding: 0; }
+      .dialog { max-width: none; height: 100%; max-height: none; border-radius: 0; }
+      .dialog-left { display: none; }
+      .dialog-content { padding: 4px 16px 24px; }
+      .hero-caption { left: 16px; right: 16px; }
+      .hero-logo.title-logo { max-height: 80px; max-width: 70%; }
+      .wide-row { grid-template-columns: 1fr; }
+    }
   `;
 }
 

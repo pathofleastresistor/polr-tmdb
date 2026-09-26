@@ -8,6 +8,12 @@ STORAGE_VERSION = 1
 TMDB_API_BASE = "https://api.themoviedb.org/3"
 TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500"
 TMDB_BACKDROP_BASE = "https://image.tmdb.org/t/p/w1280"
+TMDB_LOGO_BASE = "https://image.tmdb.org/t/p/w500"      # title treatment art
+TMDB_STILL_BASE = "https://image.tmdb.org/t/p/w780"     # episode stills
+TMDB_PROFILE_BASE = "https://image.tmdb.org/t/p/w185"   # cast headshots
+
+# Cast members kept per title (with headshots) for the detail dialog
+MAX_CAST = 12
 
 CONF_API_KEY = "api_key"
 CONF_LANGUAGE = "language"

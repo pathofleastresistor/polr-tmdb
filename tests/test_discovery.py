@@ -117,6 +117,7 @@ class TestSummarizeSearchResult:
             "tmdb_id": 136311, "media_type": "tv", "title": "Shrinking", "year": "2023",
             "overview": "A grieving therapist", "rating": 8.2,
             "poster_url": "https://image.tmdb.org/t/p/w500/p.jpg",
+            "backdrop_url": None,
             "item_id": None, "status": None,
         }
 
