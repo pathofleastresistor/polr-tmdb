@@ -45,6 +45,7 @@ async def setup_integration(hass: HomeAssistant):
               new=AsyncMock(return_value=TV_DETAILS)),
         patch("custom_components.polr_tmdb.api.TmdbShowsApi.async_get_movie_details",
               new=AsyncMock(return_value={})),
+        patch("custom_components.polr_tmdb._async_register_frontend", new=AsyncMock()),
         patch("custom_components.polr_tmdb.coordinator.asyncio.sleep", new=AsyncMock()),
     ):
         assert await hass.config_entries.async_setup(entry.entry_id)
@@ -282,3 +283,29 @@ async def test_preview_returns_item_shape_without_adding(hass, setup_integration
     assert preview["seasons"] == 3
     assert preview["genres"] == ["Comedy"]
     assert _store(hass).get_all() == []
+
+
+# ---------------------------------------------------------------------------
+# frontend: the integration serves the card
+# ---------------------------------------------------------------------------
+
+async def test_card_is_served_and_loaded_once(hass):
+    from unittest.mock import MagicMock
+
+    from custom_components.polr_tmdb import (
+        DATA_FRONTEND_REGISTERED,
+        FRONTEND_DIR,
+        _async_register_frontend,
+    )
+
+    assert (FRONTEND_DIR / "card.js").is_file(), "run `npm run build` to bundle the card"
+    hass.config.components.add("frontend")
+    hass.http = MagicMock(async_register_static_paths=AsyncMock())
+    with patch("custom_components.polr_tmdb.add_extra_js_url") as add_js:
+        await _async_register_frontend(hass)
+        await _async_register_frontend(hass)  # a reload must not load it twice
+    assert hass.http.async_register_static_paths.await_count == 1
+    add_js.assert_called_once()
+    url = add_js.call_args.args[1]
+    assert url.startswith("/polr_tmdb_frontend/card.js?v=")
+    assert hass.data[DATA_FRONTEND_REGISTERED]

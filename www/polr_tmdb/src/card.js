@@ -1321,8 +1321,12 @@ class TmdbShowsCardEditor extends LitElement {
   `;
 }
 
-customElements.define("polr-tmdb-card", TmdbShowsCard);
-customElements.define("polr-tmdb-card-editor", TmdbShowsCardEditor);
-
-window.customCards = window.customCards || [];
-window.customCards.push({ type: "polr-tmdb-card", name: "TMDB Shows & Movies", description: "What to watch tonight, and what to try next.", preview: false });
+// The integration loads this file on every page. An older copy may also be
+// registered as a dashboard resource; whichever loads first wins, and the
+// other must not throw on a duplicate define.
+if (!customElements.get("polr-tmdb-card")) {
+  customElements.define("polr-tmdb-card", TmdbShowsCard);
+  customElements.define("polr-tmdb-card-editor", TmdbShowsCardEditor);
+  window.customCards = window.customCards || [];
+  window.customCards.push({ type: "polr-tmdb-card", name: "TMDB Shows & Movies", description: "What to watch tonight, and what to try next.", preview: false });
+}

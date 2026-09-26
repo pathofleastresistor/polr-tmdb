@@ -621,7 +621,7 @@ var De=Object.defineProperty;var He=(o,e,t)=>e in o?De(o,e,{enumerable:!0,config
     .editor { display: flex; flex-direction: column; gap: 10px; padding: 8px; }
     label { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; }
     input { padding: 6px; border-radius: 4px; border: 1px solid var(--divider-color, #ccc); background: transparent; color: inherit; }
-  `);customElements.define("polr-tmdb-card",W);customElements.define("polr-tmdb-card-editor",q);window.customCards=window.customCards||[];window.customCards.push({type:"polr-tmdb-card",name:"TMDB Shows & Movies",description:"What to watch tonight, and what to try next.",preview:!1});
+  `);customElements.get("polr-tmdb-card")||(customElements.define("polr-tmdb-card",W),customElements.define("polr-tmdb-card-editor",q),window.customCards=window.customCards||[],window.customCards.push({type:"polr-tmdb-card",name:"TMDB Shows & Movies",description:"What to watch tonight, and what to try next.",preview:!1}));
 /*! Bundled license information:
 
 @lit/reactive-element/css-tag.js:

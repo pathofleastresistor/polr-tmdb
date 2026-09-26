@@ -26,17 +26,21 @@ A custom Home Assistant integration and Lovelace card for managing your househol
 
 ### Via HACS (Custom Repository)
 
-**Step 1 — Add the integration:**
-1. In HACS, go to **Integrations → ⋮ → Custom Repositories**
+1. In HACS, go to **⋮ → Custom Repositories**
 2. Add `https://github.com/pathofleastresistor/polr-tmdb` with category **Integration**
 3. Install **PoLR TMDB** and restart Home Assistant
 4. Go to **Settings → Devices & Services → Add Integration**, search for **PoLR TMDB**
 5. Enter your [TMDB API key](https://www.themoviedb.org/settings/api)
 
-**Step 2 — Add the Lovelace card:**
-1. In HACS, go to **Frontend → ⋮ → Custom Repositories**
-2. Add `https://github.com/pathofleastresistor/polr-tmdb` with category **Plugin**
-3. Install **PoLR TMDB** — the card resource is registered automatically
+The card ships inside the integration and loads automatically — there's no
+separate frontend install or dashboard resource to add. Updating the
+integration updates the card.
+
+> **Upgrading from 1.3.0 or earlier?** If you added the card as a dashboard
+> resource (a HACS *Plugin* install, or `/local/polr_tmdb/card.js`), remove it
+> under **Settings → Dashboards → ⋮ → Resources** (and uninstall the Plugin
+> in HACS). Left in place it's harmless — the integration's copy loads first —
+> but it's dead weight.
 
 Then add the card to any dashboard:
 ```yaml
@@ -183,10 +187,12 @@ npm install
 
 # Configure local paths
 cp .env.example .env
-# Edit .env — set HA_CONFIG, HA_WWW, and HA_RESOURCES_FILE to match your setup
+# Edit .env — set HA_CONFIG to your HA config folder
 
-# Create the custom_components symlink and output JS directly to your HA www folder
+# Symlink custom_components/polr_tmdb into HA
 npm run setup
+# Build the card into custom_components/polr_tmdb/frontend/card.js
+# (served by the integration; reload the browser to pick it up)
 npm run build
 
 # Watch mode (rebuild on JS change)

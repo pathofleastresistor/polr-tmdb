@@ -1,6 +1,6 @@
 import esbuild from "esbuild";
 import { argv } from "process";
-import { readFileSync, writeFileSync, existsSync, symlinkSync, rmSync, readdirSync, renameSync } from "fs";
+import { readFileSync, existsSync, symlinkSync, rmSync, readdirSync, renameSync } from "fs";
 import { resolve, extname, basename } from "path";
 
 const setup = argv.includes("--setup");
@@ -17,8 +17,9 @@ if (existsSync(".env")) {
 }
 
 const HA_CONFIG = env.HA_CONFIG ?? process.env.HA_CONFIG ?? "../ha-config/homeassistant";
-const HA_WWW = env.HA_WWW ?? process.env.HA_WWW ?? `${HA_CONFIG}/www/polr_tmdb`;
-const RESOURCES_FILE = env.HA_RESOURCES_FILE ?? process.env.HA_RESOURCES_FILE ?? `${HA_CONFIG}/.storage/lovelace_resources`;
+// The integration serves the card itself (and cache-busts it by hash), so the
+// build goes into the component, not into HA's www/ folder.
+const CARD_OUT = "custom_components/polr_tmdb/frontend/card.js";
 
 // ---------------------------------------------------------------------------
 // Screenshots: compress images in screenshots/ to jpg, max 1200px wide
@@ -47,7 +48,7 @@ function runSetup() {
     console.error("Error: HA_CONFIG is not set in .env");
     process.exit(1);
   }
-  // HA_COMPONENT_LINK_TARGET / HA_WWW_LINK_TARGET let you override symlink targets
+  // HA_COMPONENT_LINK_TARGET lets you override the symlink target
   // when HA runs in Docker with the project mounted at a different path inside the
   // container (e.g. /config/tmdb_dev) vs the host path.
   const componentTarget = env.HA_COMPONENT_LINK_TARGET ?? resolve("custom_components/polr_tmdb");
@@ -56,29 +57,8 @@ function runSetup() {
   symlinkSync(componentTarget, componentLink);
   console.log(`Symlink created: ${componentLink} → ${componentTarget}`);
 
-  // www/polr_tmdb is NOT symlinked — HA's HTTP server doesn't follow symlinks
-  // for /local/ serving. Run `npm run build` to write card.js directly.
-}
-
-// ---------------------------------------------------------------------------
-// Bump ?v= on card.js (lovelace resource) so browsers pick up the new build.
-// ---------------------------------------------------------------------------
-
-function bumpVersions() {
-  if (RESOURCES_FILE === "/dev/null") return;
-  const raw = readFileSync(RESOURCES_FILE, "utf8");
-  const data = JSON.parse(raw);
-  let next = 1;
-  for (const item of data.data.items) {
-    if (item.url.includes("polr_tmdb/card.js")) {
-      const current = parseInt(item.url.match(/[?&]v=(\d+)/)?.[1] || "1", 10);
-      next = current + 1;
-      item.url = item.url.replace(/[?&]v=\d+/, "").replace(/\?$/, "") + `?v=${next}`;
-    }
-  }
-  writeFileSync(RESOURCES_FILE, JSON.stringify(data, null, 2));
-
-  console.log(`  Resource version → v${next}`);
+  // The card is built into the component (frontend/card.js), so the symlink
+  // is all HA needs: `npm run build` (or watch), then reload the browser.
 }
 
 // ---------------------------------------------------------------------------
@@ -93,8 +73,8 @@ const sharedConfig = {
 };
 
 const builds = [
-  { entryPoints: ["www/polr_tmdb/src/card.js"],  outfile: `${HA_WWW}/card.js` },
-  { entryPoints: ["www/polr_tmdb/src/card.js"],  outfile: "card.js" }, // root copy for HACS
+  { entryPoints: ["www/polr_tmdb/src/card.js"], outfile: CARD_OUT },
+  { entryPoints: ["www/polr_tmdb/src/card.js"], outfile: "card.js" }, // root copy for HACS plugin installs
 ];
 
 if (setup) {
@@ -106,9 +86,8 @@ if (setup) {
     builds.map((b) => esbuild.context({ ...sharedConfig, ...b }))
   );
   await Promise.all(contexts.map((ctx) => ctx.watch()));
-  console.log(`Watching — card to ${HA_WWW}/`);
+  console.log(`Watching — card to ${CARD_OUT}`);
 } else {
   await Promise.all(builds.map((b) => esbuild.build({ ...sharedConfig, ...b })));
-  bumpVersions();
-  console.log(`Build complete — card to ${HA_WWW}/`);
+  console.log(`Build complete — card to ${CARD_OUT}`);
 }

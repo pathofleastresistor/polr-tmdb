@@ -1,6 +1,6 @@
 {
   "name": "polr-tmdb",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "PoLR TMDB — HACS integration + Lovelace card",
   "license": "MIT",
   "private": true,

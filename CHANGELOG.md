@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.3.1] - 2026-09-26
+
+### Fixed
+- The card now ships inside the integration and loads automatically, so
+  updating the integration always updates the card. Before, the card came from
+  a separate dashboard resource that could stay on an old version — for
+  example, a 1.2 card whose ⊕ button led to the sidebar panel that 1.3.0
+  removed, so it did nothing
+- Loading the card twice (the integration's copy plus an old dashboard
+  resource) no longer throws; the first one loaded wins
+
+### Upgrading
+- Remove any old PoLR TMDB dashboard resource (a HACS Plugin install or
+  `/local/polr_tmdb/card.js`) under Settings → Dashboards → Resources
+
 ## [1.3.0] - 2026-09-26
 
 The card is now the whole UI: search and your full list open as dialogs from

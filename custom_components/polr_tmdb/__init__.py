@@ -2,11 +2,15 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
+from pathlib import Path
 from typing import Any
 
 import voluptuous as vol
 from homeassistant.components import websocket_api
+from homeassistant.components.frontend import add_extra_js_url
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import (
     HomeAssistant,
@@ -51,6 +55,17 @@ _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = ["sensor"]
 
+# The Lovelace card ships inside the integration: it's served from here and
+# loaded on every frontend page, so a HACS integration install is all it takes
+# and the card can never fall out of step with the backend.
+FRONTEND_DIR = Path(__file__).parent.resolve() / "frontend"
+FRONTEND_URL = f"/{DOMAIN}_frontend"
+# Kept outside hass.data[DOMAIN], which is dropped on unload: static paths and
+# extra JS URLs can't be unregistered, so registering again on reload would
+# fail or load the card twice.
+DATA_FRONTEND_REGISTERED = f"{DOMAIN}_frontend_registered"
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up TMDB Shows & Movies from a config entry."""
     api_key: str = entry.data[CONF_API_KEY]
@@ -79,6 +94,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # known metadata without waiting on TMDB.
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
+    # Serve the Lovelace card
+    await _async_register_frontend(hass)
+
     # Register HA services
     _async_register_services(hass)
 
@@ -105,6 +123,30 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unloaded:
         hass.data.pop(DOMAIN, None)
     return unloaded
+
+
+# ---------------------------------------------------------------------------
+# Frontend
+# ---------------------------------------------------------------------------
+
+async def _async_register_frontend(hass: HomeAssistant) -> None:
+    """Serve the bundled card JS and load it on every frontend page."""
+    if hass.data.get(DATA_FRONTEND_REGISTERED):
+        return
+    if "frontend" not in hass.config.components:
+        _LOGGER.warning("Frontend isn't loaded; the PoLR TMDB card won't be available")
+        return
+    await hass.http.async_register_static_paths(
+        [StaticPathConfig(FRONTEND_URL, str(FRONTEND_DIR), False)]
+    )
+    # Cache-bust with the file's hash so browsers pick up a new build after
+    # an update without a hard refresh.
+    card_js = FRONTEND_DIR / "card.js"
+    digest = await hass.async_add_executor_job(
+        lambda: hashlib.sha256(card_js.read_bytes()).hexdigest()[:12]
+    )
+    add_extra_js_url(hass, f"{FRONTEND_URL}/card.js?v={digest}")
+    hass.data[DATA_FRONTEND_REGISTERED] = True
 
 
 # ---------------------------------------------------------------------------
