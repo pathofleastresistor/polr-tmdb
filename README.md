@@ -83,14 +83,14 @@ data:
 
 ## Lovelace Card
 
-The card is the whole UI. At a glance it shows up to four sections:
+The card is the whole UI, and it's one view with no tabs:
 
-| Section | Contents |
+| On the card | Contents |
 |---|---|
-| **New** | TV shows with episodes aired beyond your current progress |
-| **Coming Soon** | Episodes airing within the next 14 days |
-| **Up Next** | Everything in your Up Next list |
-| **Suggested** | Titles proposed with a reason, waiting for Add / Not for us |
+| **New episodes** | TV shows with episodes aired beyond your progress, first |
+| **Up Next** | Everything you haven't started |
+| **Coming up** | A short list of episodes airing in the next 14 days, with dates |
+| 💡 **Suggestions** | An inbox behind a header icon (with a count): Add / Not for us |
 
 Bigger tasks open as dialogs (full screen on phones), from the header icons:
 
@@ -98,7 +98,8 @@ Bigger tasks open as dialogs (full screen on phones), from the header icons:
 |---|---|
 | 🔍 **Search** | Find a movie or show on TMDB, preview it, and add it |
 | 📚 **Library** | Your whole list, filtered by status (Watching, Up Next, Watched, Not for us…) |
-| **Details** | Opens from any poster: status, season/episode progress, rating, notes, where to watch |
+| 💡 **Suggestions** | Titles proposed with a reason, waiting for Add / Not for us |
+| **Details** | Opens from any poster: where you are in the show, one button to mark the next episode watched, rating, where to watch |
 
 Press **Esc** or tap outside a dialog to close it.
 
@@ -111,7 +112,7 @@ Press **Esc** or tap outside a dialog to close it.
 type: custom:polr-tmdb-card
 title: Try Next
 sections: [suggested, upnext]   # any of: new, soon, upnext, suggested
-default_section: suggested
+default_section: suggested      # show suggestions on the card itself, not behind the 💡 icon
 tvs:                            # Android TV Remote media players
   - entity: media_player.media_room_theater_room_tv
     name: Theater

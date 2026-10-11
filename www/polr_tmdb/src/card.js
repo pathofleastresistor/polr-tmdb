@@ -43,12 +43,11 @@ class TmdbShowsCard extends LitElement {
     _hass: { state: true },
     _config: { state: true },
     _items: { state: true },
-    _section: { state: true }, // "new" | "soon" | "upnext" | "suggested"
     _detail: { state: true },
     _editingProgress: { state: true },
     _dismissing: { state: true }, // item_id whose "not for us" chooser is open
     _toast: { state: true },
-    _modal: { state: true }, // null | "search" | "library"
+    _modal: { state: true }, // null | "search" | "library" | "suggested"
     _libraryFilter: { state: true },
     _previewLoading: { state: true },
     _searchQuery: { state: true },
@@ -61,7 +60,6 @@ class TmdbShowsCard extends LitElement {
   constructor() {
     super();
     this._items = [];
-    this._section = null; // resolved from config on first render
     this._detail = null;
     this._dismissing = null;
     this._toast = null;
@@ -99,11 +97,6 @@ class TmdbShowsCard extends LitElement {
       }
     }
     this._config = { title: "Watch Tonight", search: true, ...config, sections, tvs };
-    if (config.default_section && sections.includes(config.default_section)) {
-      this._section = config.default_section;
-    } else if (!sections.includes(this._section)) {
-      this._section = sections[0];
-    }
   }
 
   set hass(hass) {
@@ -443,28 +436,34 @@ class TmdbShowsCard extends LitElement {
       .sort((a, b) => (b.suggestion?.suggested_at || "").localeCompare(a.suggestion?.suggested_at || ""));
   }
 
-  _itemsFor(section) {
-    if (section === "new") return this._newItems;
-    if (section === "soon") return this._soonItems;
-    if (section === "suggested") return this._suggestedItems;
-    return this._upNextItems;
-  }
-
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
+  // One view, no tabs: new episodes first, then what's queued, then a quiet
+  // "coming up" list. Suggestions are an inbox behind a header icon, unless
+  // the card is set up to be about suggestions (default_section: suggested).
   render() {
     if (!this._config) return nothing;
-    const labels = { new: "New", soon: "Coming Soon", upnext: "Up Next", suggested: "Suggested" };
-    const sections = this._config.sections.map((id) => ({ id, label: labels[id], count: this._itemsFor(id).length }));
-    const active = this._itemsFor(this._section);
+    const has = (id) => this._config.sections.includes(id);
+    const fresh = has("new") ? this._newItems : [];
+    const queued = has("upnext") ? this._upNextItems : [];
+    const soon = has("soon") ? this._soonItems : [];
+    const suggested = has("suggested") ? this._suggestedItems : [];
+    const inlineSuggestions = has("suggested")
+      && (this._config.default_section === "suggested" || !(has("new") || has("upnext") || has("soon")));
+    const nothingToShow = !fresh.length && !queued.length && !soon.length && !(inlineSuggestions && suggested.length);
 
     return html`
       <ha-card>
         <div class="card-header">
           <span class="card-title">${this._config.title}</span>
           <div class="header-actions">
+            ${has("suggested") && !inlineSuggestions ? html`
+              <button class="icon-btn icon-btn-badged" title="Suggestions" aria-label="Suggestions" @click=${() => this._openModal("suggested")}>
+                <ha-icon icon="mdi:lightbulb-on-outline"></ha-icon>
+                ${suggested.length ? html`<span class="icon-badge">${suggested.length}</span>` : nothing}
+              </button>` : nothing}
             ${this._config.search ? html`
               <button class="icon-btn" title="Search" aria-label="Search" @click=${() => this._openModal("search")}>
                 <ha-icon icon="mdi:magnify"></ha-icon>
@@ -474,26 +473,60 @@ class TmdbShowsCard extends LitElement {
             </button>
           </div>
         </div>
-        ${sections.length > 1 ? html`
-          <div class="section-bar">
-            ${this._renderSegmented(sections.map(({ id, label, count }) => ({ id, label, count })), this._section, (id) => (this._section = id))}
+
+        ${inlineSuggestions && suggested.length ? html`
+          <div class="suggestion-list">${repeat(suggested, (i) => i.item_id, (item) => this._renderSuggestion(item))}</div>` : nothing}
+
+        ${fresh.length ? html`
+          ${queued.length || soon.length ? html`<div class="group-label">New episodes</div>` : nothing}
+          <div class="wide-row">${repeat(fresh, (i) => i.item_id, (item) => this._renderWideTile(item))}</div>` : nothing}
+
+        ${queued.length ? html`
+          ${fresh.length || soon.length ? html`<div class="group-label">Up Next</div>` : nothing}
+          <div class="poster-row">${repeat(queued, (i) => i.item_id, (item) => this._renderPoster(item))}</div>` : nothing}
+
+        ${soon.length ? html`
+          <div class="group-label">Coming up</div>
+          <div class="soon-list">
+            ${repeat(soon, (i) => i.item_id, (item) => html`
+              <button class="soon-row" @click=${() => (this._detail = item)}>
+                <span class="soon-title">${item.title}</span>
+                <span class="soon-when">${this._epLabelShort(item.next_episode_to_air)} · ${this._whenLabel(item.next_episode_to_air?.air_date)}</span>
+              </button>`)}
           </div>` : nothing}
 
-        ${active.length === 0
-          ? this._renderEmpty()
-          : this._section === "suggested"
-            ? html`<div class="suggestion-list">${repeat(active, (i) => i.item_id, (item) => this._renderSuggestion(item))}</div>`
-            : this._section === "new" || this._section === "soon"
-              ? html`<div class="wide-row">${repeat(active, (i) => i.item_id, (item) => this._renderWideTile(item))}</div>`
-              : html`<div class="poster-row">${repeat(active, (i) => i.item_id, (item) => this._renderPoster(item))}</div>`}
+        ${nothingToShow ? this._renderEmpty() : nothing}
 
         ${this._toast ? html`<div class="toast">${this._toast}</div>` : nothing}
       </ha-card>
 
       ${this._modal === "search" ? this._renderSearchModal() : nothing}
       ${this._modal === "library" ? this._renderLibraryModal() : nothing}
+      ${this._modal === "suggested" ? this._renderSuggestionsModal() : nothing}
       ${this._detail ? this._renderDetailDialog() : nothing}
     `;
+  }
+
+  _epLabelShort(ep) {
+    return ep ? `S${ep.season_number}E${ep.episode_number}` : "";
+  }
+
+  _whenLabel(dateStr) {
+    const days = this._daysUntil(dateStr);
+    if (days === null) return "";
+    if (days <= 1) return "Tomorrow";
+    const d = new Date(dateStr + "T12:00:00");
+    return days < 7
+      ? d.toLocaleDateString(undefined, { weekday: "long" })
+      : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  }
+
+  _renderSuggestionsModal() {
+    const items = this._suggestedItems;
+    const body = items.length === 0
+      ? html`<div class="modal-note">No suggestions right now. New ones arrive with the next weekly pass.</div>`
+      : html`<div class="suggestion-list suggestion-list-modal">${repeat(items, (i) => i.item_id, (item) => this._renderSuggestion(item))}</div>`;
+    return this._renderModal("Suggestions", body);
   }
 
   // Segmented control in the style of HA's tile card features
@@ -605,19 +638,12 @@ class TmdbShowsCard extends LitElement {
   }
 
   _renderEmpty() {
-    const configs = {
-      new:    { icon: "mdi:check-circle-outline", heading: "All caught up!",        sub: "No new episodes to watch right now." },
-      soon:   { icon: "mdi:calendar-blank-outline", heading: "Nothing coming soon", sub: "No new episodes airing in the next 2 weeks." },
-      upnext: { icon: "mdi:playlist-play",         heading: "Queue is empty",       sub: "Add something to your watchlist to get started." },
-      suggested: { icon: "mdi:lightbulb-on-outline", heading: "No suggestions right now", sub: "New ones arrive with the next weekly pass." },
-    };
-    const { icon, heading, sub } = configs[this._section] || configs.upnext;
     return html`
       <div class="empty-state">
-        <ha-icon class="empty-icon" .icon=${icon}></ha-icon>
-        <div class="empty-heading">${heading}</div>
-        <div class="empty-sub">${sub}</div>
-        ${this._section === "upnext" && this._config.search ? html`
+        <ha-icon class="empty-icon" icon="mdi:check-circle-outline"></ha-icon>
+        <div class="empty-heading">All caught up!</div>
+        <div class="empty-sub">Nothing new to watch and nothing in your queue.</div>
+        ${this._config.search ? html`
           <button class="action" @click=${() => this._openModal("search")}>
             <ha-icon icon="mdi:magnify"></ha-icon> Find something
           </button>` : nothing}
@@ -1115,7 +1141,15 @@ class TmdbShowsCard extends LitElement {
       transition: background-color 0.15s, color 0.15s;
     }
     .icon-btn:hover { background: var(--polr-control-bg); color: var(--primary-text-color); }
-    .section-bar { padding: 8px 16px 12px; }
+    .group-label { padding: 4px 16px 8px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--secondary-text-color); }
+    .wide-row + .group-label, .poster-row + .group-label { padding-top: 8px; }
+    .soon-list { display: flex; flex-direction: column; padding: 0 16px 14px; }
+    .soon-row { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; background: none; border: 0; border-top: 1px solid var(--divider-color); padding: 10px 0; cursor: pointer; text-align: left; color: var(--primary-text-color); font-size: 0.95rem; }
+    .soon-row:first-child { border-top: 0; }
+    .soon-when { color: var(--secondary-text-color); font-size: 0.82rem; white-space: nowrap; }
+    .icon-btn-badged { position: relative; }
+    .icon-badge { position: absolute; top: 4px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 8px; background: var(--primary-color); color: var(--text-primary-color, #fff); font-size: 0.65rem; font-weight: 600; line-height: 16px; text-align: center; }
+    .suggestion-list-modal { padding: 0; }
 
     /* Segmented control (ha-control-select) */
     .segmented {
@@ -1139,8 +1173,6 @@ class TmdbShowsCard extends LitElement {
     .segment-selected .segment-count { background: rgba(255,255,255,0.28); }
     /* Narrow cards (phones, sidebar columns): full labels beat counts */
     @container (max-width: 440px) {
-      .section-bar .segment-count { display: none; }
-      .section-bar .segment { padding: 0 4px; }
     }
 
     /* Buttons (ha-control-button) */

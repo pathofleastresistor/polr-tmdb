@@ -8,6 +8,14 @@
   "Back to Up Next" for shows you're watching. Movies skip Watching
 - Paused is gone from the card. Existing paused items show as Watching; the
   stored data and the `update_status` service are unchanged
+- The card is one view instead of four tabs: New episodes, then Up Next, then
+  a short "Coming up" list. Suggestions moved to a 💡 icon in the header (with
+  a count) that opens a dialog. `default_section: suggested` keeps them on the
+  card itself
+- The detail panel tracks where you are: one "Watched S6E1" button, "All
+  caught up", and a hidden "Change…" for exact picks. Status follows from
+  your position (an ended show you've finished becomes Watched). Notes are gone
+- New `show_ended` field, filled from TMDB on the next refresh
 - "Want to Watch" is now "Up Next" everywhere, and search previews have a
   single "Add to Up Next" button
 
