@@ -642,8 +642,8 @@ def _async_register_websocket(hass: HomeAssistant) -> None:
         vol.Optional("status"): vol.In(ALL_STATUSES),
         vol.Optional("rating"): vol.All(int, vol.Range(min=1, max=10)),
         vol.Optional("notes"): vol.All(str, vol.Length(max=10000)),
-        vol.Optional("current_season"): int,
-        vol.Optional("current_episode"): int,
+        vol.Optional("current_season"): vol.Any(None, int),
+        vol.Optional("current_episode"): vol.Any(None, int),
     })
     @websocket_api.async_response
     async def ws_update(

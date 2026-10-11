@@ -9,14 +9,14 @@ A custom Home Assistant integration and Lovelace card for managing your househol
 
 ## Features
 
-- Track movies and TV shows with statuses: Want to Watch, Watching, Watched, Paused
+- Track movies and TV shows with a simple lifecycle: Queue, Watching, Watched (movies skip Watching)
 - Suggestions with reasons, and a remembered "not for us" list
 - Watch links that open a title in its streaming app on a Google TV
 - TMDB artwork and metadata auto-fetched: posters, backdrops, title logos, episode stills, cast photos, ratings, genres, trailers, network info
 - TV show progress tracking (current season + episode)
 - New episode detection with badges
 - Personal ratings (1–10) and notes
-- One Lovelace card for everything: New / Coming Soon / Up Next / Suggested at a glance, with Search and Library opening as dialogs
+- One Lovelace card for everything: Watching and your Queue at a glance, with Suggestions in an inbox, with Search and Library opening as dialogs
 - Real-time sync across all open dashboards via HA events
 - HA services for automation integration
 
@@ -52,9 +52,9 @@ type: custom:polr-tmdb-card
 ## Adding Shows & Movies
 
 Tap the 🔍 **Search** icon on the card and type a title:
-- Tap **+** on a poster to add it to Up Next in one go
+- Tap **+** on a poster to add it to your Queue in one go
 - Tap the poster itself for a preview (overview, genres, trailer, where to
-  watch), then **Add to Up Next** or **Watching now**
+  watch), then **Add to Queue**
 - Titles already on your list show their status; tapping one opens it
 
 Or via HA services. `polr_tmdb.search` finds the TMDB ID (and tells you if the
@@ -83,22 +83,22 @@ data:
 
 ## Lovelace Card
 
-The card is the whole UI. At a glance it shows up to four sections:
+The card is the whole UI, and it's one view with no tabs:
 
-| Section | Contents |
+| On the card | Contents |
 |---|---|
-| **New** | TV shows with episodes aired beyond your current progress |
-| **Coming Soon** | Episodes airing within the next 14 days |
-| **Up Next** | Everything in your Want to Watch list |
-| **Suggested** | Titles proposed with a reason, waiting for Add / Not for us |
+| **Watching** | Everything you're following. Shows with an episode to watch come first (NEW badge); shows you're caught up on follow, with when they return ("Returns Wednesday", "On break") |
+| **Queue** | Everything you aren't watching right now: not started, or started and parked ("Stopped at S2E4") |
+| 💡 **Suggestions** | An inbox behind a header icon (with a count): Add / Not for us |
 
 Bigger tasks open as dialogs (full screen on phones), from the header icons:
 
 | Dialog | What it's for |
 |---|---|
 | 🔍 **Search** | Find a movie or show on TMDB, preview it, and add it |
-| 📚 **Library** | Your whole list, filtered by status (Watching, Watched, Paused, Not for us…) |
-| **Details** | Opens from any poster: status, season/episode progress, rating, notes, where to watch |
+| 📚 **Library** | Your whole list, filtered by status (Watching, Queue, Watched, Not for us…) |
+| 💡 **Suggestions** | Titles proposed with a reason, waiting for Add / Not for us |
+| **Details** | Opens from any poster: where you are in the show, one button to mark the next episode watched, rating, where to watch |
 
 Press **Esc** or tap outside a dialog to close it.
 
@@ -110,8 +110,8 @@ Press **Esc** or tap outside a dialog to close it.
 ```yaml
 type: custom:polr-tmdb-card
 title: Try Next
-sections: [suggested, upnext]   # any of: new, soon, upnext, suggested
-default_section: suggested
+sections: [suggested, queue]    # any of: watching, queue, suggested (old names new/soon/upnext still work)
+default_section: suggested      # show suggestions on the card itself, not behind the 💡 icon
 tvs:                            # Android TV Remote media players
   - entity: media_player.media_room_theater_room_tv
     name: Theater
@@ -126,7 +126,7 @@ open the title in its streaming app on that TV.
 ## Suggestions and watch links
 
 Titles can be *suggested* with a reason (by a person or an automation). The card
-shows them in a **Suggested** section with **Add** (moves it to Up Next) and
+shows them in a **Suggested** section with **Add** (moves it to your Queue) and
 **Not for us** (dismisses it and records why). Dismissed titles are never
 suggested again.
 

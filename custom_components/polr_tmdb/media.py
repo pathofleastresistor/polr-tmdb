@@ -109,6 +109,7 @@ class WatchlistItem:
     # Each is a dict with keys: season_number, episode_number, name, air_date
     last_episode_to_air: dict | None = None
     next_episode_to_air: dict | None = None
+    show_ended: bool = False    # TMDB says the series is over (Ended/Canceled)
 
     # Watch providers by region (from TMDB watch/providers)
     # { flatrate: [{provider_id, provider_name, logo_path}], rent: [...], buy: [...] }
@@ -156,6 +157,7 @@ class WatchlistItem:
             "current_episode": self.current_episode,
             "last_episode_to_air": self.last_episode_to_air,
             "next_episode_to_air": self.next_episode_to_air,
+            "show_ended": self.show_ended,
             "has_new_episode": self.has_new_episode,
             "watch_providers": self.watch_providers,
             "suggestion": self.suggestion,
@@ -192,6 +194,7 @@ class WatchlistItem:
             current_episode=data.get("current_episode"),
             last_episode_to_air=data.get("last_episode_to_air"),
             next_episode_to_air=data.get("next_episode_to_air"),
+            show_ended=bool(data.get("show_ended", False)),
             watch_providers=data.get("watch_providers"),
             suggestion=data.get("suggestion"),
             dismiss_reason=data.get("dismiss_reason", ""),
@@ -305,6 +308,7 @@ class WatchlistItem:
 
             self.last_episode_to_air = _ep(data.get("last_episode_to_air"))
             self.next_episode_to_air = _ep(data.get("next_episode_to_air"))
+            self.show_ended = data.get("status") in ("Ended", "Canceled")
         else:
             self.release_date = data.get("release_date", self.release_date)
             self.runtime = data.get("runtime", self.runtime) or self.runtime
