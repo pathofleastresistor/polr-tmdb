@@ -479,7 +479,7 @@ class TmdbShowsCard extends LitElement {
 
         ${fresh.length ? html`
           ${queued.length || soon.length ? html`<div class="group-label">New episodes</div>` : nothing}
-          <div class="wide-row">${repeat(fresh, (i) => i.item_id, (item) => this._renderWideTile(item))}</div>` : nothing}
+          <div class="poster-row">${repeat(fresh, (i) => i.item_id, (item) => this._renderPoster(item))}</div>` : nothing}
 
         ${queued.length ? html`
           ${fresh.length || soon.length ? html`<div class="group-label">Up Next</div>` : nothing}
@@ -660,29 +660,6 @@ class TmdbShowsCard extends LitElement {
 
   _epLabel(ep) {
     return ep ? `S${ep.season_number} · E${ep.episode_number}${ep.name ? ` · ${ep.name}` : ""}` : "";
-  }
-
-  // Landscape tile for New / Coming Soon: the episode still when TMDB has
-  // one, the show's backdrop otherwise, with the title logo on top.
-  _renderWideTile(item) {
-    const soon = this._isComingSoon(item);
-    const ep = soon ? item.next_episode_to_air : item.last_episode_to_air;
-    const days = soon && ep?.air_date ? this._daysUntil(ep.air_date) : null;
-    const image = (!soon && ep?.still_path) || item.backdrop_path || item.poster_path;
-    return html`
-      <div class="wide-tile" @click=${() => (this._detail = item)}>
-        ${image
-          ? html`<img class="wide-img" src="${image}" alt="" loading="lazy" />`
-          : html`<div class="wide-img wide-fallback">${item.media_type === "tv" ? "📺" : "🎬"}</div>`}
-        <div class="wide-fade"></div>
-        ${this._hasNewEpisode(item) ? html`<span class="new-badge">NEW</span>` : nothing}
-        ${days !== null ? html`<span class="soon-badge">${days === 1 ? "Tomorrow" : `In ${days} days`}</span>` : nothing}
-        <div class="wide-caption">
-          ${this._renderTitleArt(item, "wide-logo")}
-          ${ep ? html`<div class="wide-sub">${this._epLabel(ep)}</div>` : nothing}
-        </div>
-      </div>
-    `;
   }
 
   _renderPoster(item, showStatus = false) {
@@ -1142,7 +1119,7 @@ class TmdbShowsCard extends LitElement {
     }
     .icon-btn:hover { background: var(--polr-control-bg); color: var(--primary-text-color); }
     .group-label { padding: 4px 16px 8px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--secondary-text-color); }
-    .wide-row + .group-label, .poster-row + .group-label { padding-top: 8px; }
+    .poster-row + .group-label { padding-top: 8px; }
     .soon-list { display: flex; flex-direction: column; padding: 0 16px 14px; }
     .soon-row { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; background: none; border: 0; border-top: 1px solid var(--divider-color); padding: 10px 0; cursor: pointer; text-align: left; color: var(--primary-text-color); font-size: 0.95rem; }
     .soon-row:first-child { border-top: 0; }
