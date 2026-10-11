@@ -129,7 +129,8 @@ class TmdbShowsCard extends LitElement {
 
   async _loadItems() {
     try {
-      this._items = await this._hass.connection.sendMessagePromise({ type: "polr_tmdb/items" }) || [];
+      const items = await this._hass.connection.sendMessagePromise({ type: "polr_tmdb/items" }) || [];
+      this._items = items.map((i) => this._normalize(i));
     } catch (e) { console.error("polr-tmdb-card: load failed", e); }
   }
 
@@ -139,17 +140,28 @@ class TmdbShowsCard extends LitElement {
       const changed = event.data.item;
       if (!this._detail || !changed) return;
       if (changed.item_id === this._detail.item_id) {
-        this._detail = event.data.action === "remove" ? null : changed;
+        this._detail = event.data.action === "remove" ? null : this._normalize(changed);
       } else if (!this._detail.item_id && this._sameTitle(changed, this._detail)) {
         // The title being previewed was just added (here or elsewhere):
         // switch the dialog over to the real item.
-        this._detail = changed;
+        this._detail = this._normalize(changed);
       }
     }, "polr_tmdb_updated");
   }
 
+  // A show that has ended and that you've watched to the last aired episode
+  // is Watched, whatever the stored status says (it can lag behind: TMDB only
+  // tells us the show ended on a later refresh).
+  _normalize(item) {
+    if (item.media_type === "tv" && item.show_ended && ["watching", "paused"].includes(item.status) && this._isCaughtUp(item)) {
+      return { ...item, status: "watched" };
+    }
+    return item;
+  }
+
   async _updateItem(itemId, fields) {
-    const clean = Object.fromEntries(Object.entries(fields).filter(([, v]) => v != null));
+    // null is a real value for the position fields (it clears them).
+    const clean = Object.fromEntries(Object.entries(fields).filter(([k, v]) => v != null || k === "current_season" || k === "current_episode"));
     try {
       await this._hass.connection.sendMessagePromise({ type: "polr_tmdb/update", item_id: itemId, ...clean });
     } catch (e) { console.error("polr-tmdb-card: update failed", e); }
