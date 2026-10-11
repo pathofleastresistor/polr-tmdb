@@ -97,7 +97,7 @@ Bigger tasks open as dialogs (full screen on phones), from the header icons:
 | Dialog | What it's for |
 |---|---|
 | 🔍 **Search** | Find a movie or show on TMDB, preview it, and add it |
-| 📚 **Library** | Your whole list, filtered by status (Watching, Up Next, Watched, Not for us…) |
+| 📚 **Library** | Your whole list, filtered by status (Watching, Waiting for a new season, Up Next, Watched, Not for us…) |
 | 💡 **Suggestions** | Titles proposed with a reason, waiting for Add / Not for us |
 | **Details** | Opens from any poster: where you are in the show, one button to mark the next episode watched, rating, where to watch |
 

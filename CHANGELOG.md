@@ -15,6 +15,8 @@
 - The detail panel tracks where you are: one "Watched S6E1" button, "All
   caught up", and a hidden "Change…" for exact picks. Status follows from
   your position (an ended show you've finished becomes Watched). Notes are gone
+- Library has a **Waiting** filter for shows you're caught up on that haven't
+  come back yet, with their return date (or "On break")
 - New `show_ended` field, filled from TMDB on the next refresh
 - "Want to Watch" is now "Up Next" everywhere, and search previews have a
   single "Add to Up Next" button

@@ -361,8 +361,10 @@ class TmdbShowsCard extends LitElement {
     const items = filter === "all"
       ? this._items.filter((i) => i.status !== "dismissed")
       : filter === "watching"
-        ? this._items.filter((i) => this._isWatching(i))
-        : this._items.filter((i) => i.status === filter);
+        ? this._items.filter((i) => this._isWatching(i) && !this._isWaiting(i))
+        : filter === "waiting"
+          ? this._items.filter((i) => this._isWaiting(i))
+          : this._items.filter((i) => i.status === filter);
     return [...items].sort((a, b) => a.title.localeCompare(b.title));
   }
 
@@ -378,6 +380,18 @@ class TmdbShowsCard extends LitElement {
   // Paused is retired in the UI: a paused item counts as Watching.
   _isWatching(item) {
     return item.status === "watching" || item.status === "paused";
+  }
+
+  // Watching, all caught up, and the show is between seasons or on a break.
+  _isWaiting(item) {
+    return item.media_type === "tv" && this._isWatching(item) && this._isCaughtUp(item) && !item.show_ended;
+  }
+
+  // "Returns Oct 21" when TMDB has a date, otherwise "On break".
+  _returnLabel(item) {
+    const d = item.next_episode_to_air?.air_date;
+    if (!d) return "On break";
+    return `Returns ${new Date(d + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
   }
 
   _hasNewEpisode(item) {
@@ -608,7 +622,7 @@ class TmdbShowsCard extends LitElement {
 
   _renderLibraryModal() {
     const filters = [
-      ["all", "All"], ["watching", "Watching"], ["want_to_watch", "Up Next"], ["suggested", "Suggested"],
+      ["all", "All"], ["watching", "Watching"], ["waiting", "Waiting"], ["want_to_watch", "Up Next"], ["suggested", "Suggested"],
       ["watched", "Watched"], ["dismissed", "Not for us"],
     ];
     const items = this._libraryItems(this._libraryFilter);
@@ -674,7 +688,9 @@ class TmdbShowsCard extends LitElement {
 
         ${this._hasNewEpisode(item) ? html`<span class="new-badge">NEW</span>` : nothing}
         ${showStatus && this._libraryFilter === "all" ? html`
-          <span class="status-badge" style="background:${STATUS_COLORS[item.status] || "#6d6d6d"}">${STATUS_LABELS[item.status] || item.status}</span>
+          ${this._isWaiting(item)
+            ? html`<span class="status-badge" style="background:#546e7a">Waiting</span>`
+            : html`<span class="status-badge" style="background:${STATUS_COLORS[item.status] || "#6d6d6d"}">${STATUS_LABELS[item.status] || item.status}</span>`}
         ` : nothing}
 
         ${days !== null ? html`
@@ -682,6 +698,7 @@ class TmdbShowsCard extends LitElement {
         ` : nothing}
 
         <div class="poster-title">${item.title}</div>
+        ${showStatus && this._isWaiting(item) ? html`<div class="poster-sub">${this._returnLabel(item)}</div>` : nothing}
       </div>
     `;
   }
@@ -822,7 +839,7 @@ class TmdbShowsCard extends LitElement {
     else summary = `You're at S${s} · E${e}${here?.name ? ` · ${here.name}` : ""}`;
     const pill = item.status === "watched" ? null
       : this._hasNewEpisode(item) && s ? "New episode"
-      : caughtUp ? "Caught up" : null;
+      : caughtUp ? (this._isWaiting(item) ? `Caught up · ${this._returnLabel(item)}` : "Caught up") : null;
 
     const today = this._today();
     const airedEpisodes = Array.isArray(eps) ? eps.filter((x) => !x.air_date || x.air_date <= today) : [];
@@ -832,7 +849,7 @@ class TmdbShowsCard extends LitElement {
       <div class="section-label">Where you are</div>
       <div class="progress-line">
         <span>${summary}</span>
-        ${pill ? html`<span class="progress-pill ${pill === "Caught up" ? "pill-ok" : "pill-new"}">${pill}</span>` : nothing}
+        ${pill ? html`<span class="progress-pill ${pill.startsWith("Caught up") ? "pill-ok" : "pill-new"}">${pill}</span>` : nothing}
       </div>
 
       <div class="preview-actions">
