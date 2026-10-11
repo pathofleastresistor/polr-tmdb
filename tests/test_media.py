@@ -258,3 +258,19 @@ class TestRichImages:
         item = make_item(cast=[{"name": "A"}], logo_path="L", tagline="T")
         again = WatchlistItem.from_dict(item.to_dict())
         assert (again.cast, again.logo_path, again.tagline) == ([{"name": "A"}], "L", "T")
+
+
+class TestShowEnded:
+    def test_ended_series_is_flagged(self):
+        item = make_item()
+        item.update_from_tmdb({"status": "Ended"})
+        assert item.show_ended is True
+
+    def test_returning_series_is_not(self):
+        item = make_item(show_ended=True)
+        item.update_from_tmdb({"status": "Returning Series"})
+        assert item.show_ended is False
+
+    def test_round_trips_through_dict(self):
+        item = make_item(show_ended=True)
+        assert WatchlistItem.from_dict(item.to_dict()).show_ended is True

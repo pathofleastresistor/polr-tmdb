@@ -45,6 +45,7 @@ class TmdbShowsCard extends LitElement {
     _items: { state: true },
     _section: { state: true }, // "new" | "soon" | "upnext" | "suggested"
     _detail: { state: true },
+    _editingProgress: { state: true },
     _dismissing: { state: true }, // item_id whose "not for us" chooser is open
     _toast: { state: true },
     _modal: { state: true }, // null | "search" | "library"
@@ -240,6 +241,7 @@ class TmdbShowsCard extends LitElement {
 
   _closeDetail() {
     this._detail = null;
+    this._editingProgress = null;
     this._dismissing = null;
     this._previewSeq++; // drop any in-flight preview
     this._previewLoading = false;
@@ -764,125 +766,166 @@ class TmdbShowsCard extends LitElement {
   // Detail dialog
   // ---------------------------------------------------------------------------
 
-  _renderProgress(item) {
-    const numSeasons = item.seasons || 0;
-    const selectedSeason = item.current_season || "";
-    const episodes = selectedSeason ? this._getSeasonEpisodes(item.tmdb_id, selectedSeason) : [];
+  // Progress is the only thing you track: where you are in the show. Status
+  // follows from it. Ended show + at the last aired episode = Watched;
+  // anything else you've started = Watching (it flips to "New" by itself when
+  // another episode airs).
+  _isCaughtUp(item) {
     const last = item.last_episode_to_air;
-    const next = item.next_episode_to_air;
+    if (!last) return false;
+    const s = item.current_season || 0, e = item.current_episode || 0;
+    return s > 0 && (s > last.season_number || (s === last.season_number && e >= last.episode_number));
+  }
+
+  _progressFields(item, season, episode) {
+    const last = item.last_episode_to_air;
+    const done = item.show_ended && last
+      && (season > last.season_number || (season === last.season_number && episode >= last.episode_number));
+    return { current_season: season, current_episode: episode, status: done ? "watched" : "watching" };
+  }
+
+  async _setProgress(item, season, episode) {
+    const fields = this._progressFields(item, season, episode);
+    await this._updateItem(item.item_id, fields);
+    this._detail = { ...item, ...fields };
+  }
+
+  // The first episode you haven't marked yet: null when nothing has aired
+  // beyond you, undefined while the season's episode list is still loading.
+  _nextToWatch(item) {
+    const last = item.last_episode_to_air;
+    if (!last || this._isCaughtUp(item)) return null;
+    const s = item.current_season || 0, e = item.current_episode || 0;
+    if (!s) return { season: 1, episode: 1 };
+    const eps = this._getSeasonEpisodes(item.tmdb_id, s);
+    if (eps === null) return undefined;
     const today = this._today();
-    const airedEpisodes = episodes ? episodes.filter((ep) => !ep.air_date || ep.air_date <= today) : [];
-    const nextAiredLocally = next && next.air_date && next.air_date <= today;
-    const curS = item.current_season || 0, curE = item.current_episode || 0;
-    const userBehindNext = next && (next.season_number > curS || (next.season_number === curS && next.episode_number > curE));
-    const showNewAlert = item.has_new_episode || (nextAiredLocally && userBehindNext);
-    const newEp = item.has_new_episode ? last : (nextAiredLocally && userBehindNext ? next : null);
+    const nextInSeason = eps.find((x) => x.episode_number === e + 1 && (!x.air_date || x.air_date <= today));
+    if (nextInSeason) return { season: s, episode: e + 1, name: nextInSeason.name };
+    return { season: s + 1, episode: 1 };
+  }
+
+  _renderProgress(item) {
+    const s = item.current_season || 0, e = item.current_episode || 0;
+    const eps = s ? this._getSeasonEpisodes(item.tmdb_id, s) : [];
+    const here = Array.isArray(eps) ? eps.find((x) => x.episode_number === e) : null;
+    const caughtUp = this._isCaughtUp(item);
+    const next = this._nextToWatch(item);
+    const editing = this._editingProgress === item.item_id;
+
+    let summary;
+    if (item.status === "watched") summary = "Finished";
+    else if (!s) summary = "Not started";
+    else summary = `You're at S${s} · E${e}${here?.name ? ` · ${here.name}` : ""}`;
+    const pill = item.status === "watched" ? null
+      : this._hasNewEpisode(item) && s ? "New episode"
+      : caughtUp ? "Caught up" : null;
+
+    const today = this._today();
+    const airedEpisodes = Array.isArray(eps) ? eps.filter((x) => !x.air_date || x.air_date <= today) : [];
+    const numSeasons = item.seasons || 0;
 
     return html`
-      <div class="section-label">Progress ${numSeasons ? `(${numSeasons} seasons)` : ""}</div>
+      <div class="section-label">Where you are</div>
+      <div class="progress-line">
+        <span>${summary}</span>
+        ${pill ? html`<span class="progress-pill ${pill === "Caught up" ? "pill-ok" : "pill-new"}">${pill}</span>` : nothing}
+      </div>
 
-      ${showNewAlert && newEp ? html`
-        <div class="new-ep-alert">
-          <strong>New:</strong> S${newEp.season_number}E${newEp.episode_number}${newEp.name ? ` · ${newEp.name}` : ""}
+      <div class="preview-actions">
+        ${item.status === "watched" ? html`
+          <button class="action action-primary" @click=${async () => {
+            const fields = { status: "want_to_watch", current_season: null, current_episode: null };
+            await this._updateItem(item.item_id, fields);
+            this._detail = { ...item, ...fields };
+          }}><ha-icon icon="mdi:replay"></ha-icon> Watch again</button>
+        ` : html`
+          ${next !== null ? html`
+            <button class="action action-primary" ?disabled=${next === undefined}
+              @click=${() => this._setProgress(item, next.season, next.episode)}>
+              <ha-icon icon="mdi:check"></ha-icon> Watched S${next?.season ?? s}E${next?.episode ?? e + 1}
+            </button>` : nothing}
+          ${!caughtUp && item.last_episode_to_air ? html`
+            <button class="action" @click=${() => this._setProgress(item, item.last_episode_to_air.season_number, item.last_episode_to_air.episode_number)}>
+              <ha-icon icon="mdi:check-all"></ha-icon> All caught up
+            </button>` : nothing}
+        `}
+        <button class="link-btn" @click=${() => (this._editingProgress = editing ? null : item.item_id)}>
+          ${editing ? "Done" : "Change…"}
+        </button>
+      </div>
+
+      ${editing ? html`
+        <div class="progress-row">
+          <label class="select-label">
+            <span>Season</span>
+            <select class="ep-select" @change=${(ev) => {
+              const v = parseInt(ev.target.value) || null;
+              const fields = { current_season: v, current_episode: null, status: v ? "watching" : "want_to_watch" };
+              this._updateItem(item.item_id, fields);
+              this._detail = { ...item, ...fields };
+            }}>
+              <option value="">—</option>
+              ${Array.from({ length: numSeasons }, (_, i) => i + 1).map((n) => html`
+                <option value="${n}" ?selected=${s === n}>Season ${n}</option>
+              `)}
+            </select>
+          </label>
+          <label class="select-label">
+            <span>Episode</span>
+            <select class="ep-select" ?disabled=${!s || eps === null}
+              @change=${(ev) => {
+                const v = ev.target.value ? parseInt(ev.target.value, 10) : null;
+                if (v) this._setProgress(item, s, v);
+              }}>
+              <option value="">—</option>
+              ${eps === null
+                ? html`<option disabled>Loading…</option>`
+                : airedEpisodes.map((x) => html`
+                    <option value="${x.episode_number}" ?selected=${e === x.episode_number}>
+                      E${x.episode_number}${x.name ? ` · ${x.name}` : ""}
+                    </option>
+                  `)}
+            </select>
+          </label>
         </div>
       ` : nothing}
-
-      ${next && !nextAiredLocally ? html`
-        <div class="upcoming-ep">Next: S${next.season_number}E${next.episode_number}${next.air_date ? ` · ${fmtDate(next.air_date)}` : ""}</div>
-      ` : nothing}
-
-      <div class="progress-row">
-        <label class="select-label">
-          <span>Season</span>
-          <select class="ep-select" @change=${(e) => {
-            const v = parseInt(e.target.value) || null;
-            const fields = { current_season: v };
-            if (item.status === "want_to_watch") fields.status = "watching";
-            this._updateItem(item.item_id, fields);
-            this._detail = { ...item, ...fields, current_episode: null };
-          }}>
-            <option value="">—</option>
-            ${Array.from({ length: numSeasons }, (_, i) => i + 1).map((s) => html`
-              <option value="${s}" ?selected=${selectedSeason === s}>Season ${s}</option>
-            `)}
-          </select>
-        </label>
-        <label class="select-label">
-          <span>Episode</span>
-          <select class="ep-select" ?disabled=${!selectedSeason || episodes === null}
-            @change=${(e) => {
-              const v = e.target.value ? parseInt(e.target.value, 10) : null;
-              if (v) { this._updateItem(item.item_id, { current_episode: v }); this._detail = { ...item, current_episode: v }; }
-            }}>
-            <option value="">—</option>
-            ${episodes === null
-              ? html`<option disabled>Loading…</option>`
-              : airedEpisodes.map((ep) => html`
-                  <option value="${ep.episode_number}" ?selected=${item.current_episode === ep.episode_number}>
-                    E${ep.episode_number}${ep.name ? ` · ${ep.name}` : ""}
-                  </option>
-                `)}
-          </select>
-        </label>
-      </div>
-
-      ${last ? html`<div class="ep-latest-hint">Latest aired: S${last.season_number}E${last.episode_number}</div>` : nothing}
     `;
   }
 
-  // One contextual button for the next step, instead of a four-way picker.
-  // Movies skip "Watching"; Paused is retired (old paused items act as Watching).
-  _renderStatusActions(item) {
-    if (["suggested", "dismissed"].includes(item.status)) return nothing;
-    const set = async (status) => {
-      await this._updateItem(item.item_id, { status });
-      this._detail = { ...item, status };
-    };
-    const isTv = item.media_type === "tv";
-    let primary, back = null;
-    if (item.status === "watched") {
-      primary = { label: "Watch again", icon: "mdi:replay", status: isTv ? "watching" : "want_to_watch" };
-    } else if (this._isWatching(item)) {
-      primary = { label: "Mark watched", icon: "mdi:check", status: "watched" };
-      back = { label: "Back to Up Next", icon: "mdi:playlist-plus", status: "want_to_watch" };
-    } else if (isTv) {
-      primary = { label: "Start watching", icon: "mdi:play-circle-outline", status: "watching" };
-    } else {
-      primary = { label: "Mark watched", icon: "mdi:check", status: "watched" };
-    }
+  // Movies: Up Next or Watched, nothing in between.
+  _renderMovieStatus(item) {
+    const watched = item.status === "watched";
+    const status = watched ? "want_to_watch" : "watched";
     return html`
       <div class="preview-actions">
-        <button class="action action-primary" @click=${() => set(primary.status)}>
-          <ha-icon icon="${primary.icon}"></ha-icon> ${primary.label}
+        <button class="action action-primary" @click=${async () => {
+          await this._updateItem(item.item_id, { status });
+          this._detail = { ...item, status };
+        }}>
+          <ha-icon icon="${watched ? "mdi:replay" : "mdi:check"}"></ha-icon> ${watched ? "Watch again" : "Mark watched"}
         </button>
-        ${back ? html`<button class="action" @click=${() => set(back.status)}>
-          <ha-icon icon="${back.icon}"></ha-icon> ${back.label}
-        </button>` : nothing}
       </div>
     `;
   }
 
-  // Status, progress, rating and notes: only for titles on the list.
+  // Progress and rating: only for titles on the list.
   _renderItemControls(item) {
+    const started = !["suggested", "dismissed"].includes(item.status);
     return html`
       ${this._renderTvButtons(item)}
+      ${started ? (item.media_type === "tv" ? this._renderProgress(item) : this._renderMovieStatus(item)) : nothing}
 
-      ${this._renderStatusActions(item)}
-
-      ${item.media_type === "tv" ? this._renderProgress(item) : nothing}
-
-      <div class="section-label">Your Rating</div>
-      <div class="stars">
-        ${[1,2,3,4,5,6,7,8,9,10].map((n) => html`
-          <span class="star ${(item.rating||0) >= n ? "star-on" : ""}"
-            @click=${async () => { await this._updateItem(item.item_id, { rating: n }); this._detail = { ...item, rating: n }; }}>★</span>
-        `)}
-        ${item.rating ? html`<span class="rating-num">${item.rating}/10</span>` : nothing}
-      </div>
-
-      <div class="section-label">Notes</div>
-      <textarea class="notes" placeholder="Your notes…" .value=${item.notes || ""}
-        @change=${(e) => { this._updateItem(item.item_id, { notes: e.target.value }); this._detail = { ...item, notes: e.target.value }; }}></textarea>
+      ${item.status === "watched" ? html`
+        <div class="section-label">Your Rating</div>
+        <div class="stars">
+          ${[1,2,3,4,5,6,7,8,9,10].map((n) => html`
+            <span class="star ${(item.rating||0) >= n ? "star-on" : ""}"
+              @click=${async () => { await this._updateItem(item.item_id, { rating: n }); this._detail = { ...item, rating: n }; }}>★</span>
+          `)}
+          ${item.rating ? html`<span class="rating-num">${item.rating}/10</span>` : nothing}
+        </div>
+      ` : nothing}
     `;
   }
 
@@ -915,7 +958,6 @@ class TmdbShowsCard extends LitElement {
   _renderEpisodeCards(item) {
     const cards = [
       ["Next episode", item.next_episode_to_air],
-      ["Latest episode", item.last_episode_to_air],
     ].filter(([, ep]) => ep?.episode_number);
     if (!cards.length) return nothing;
     return html`
@@ -1296,6 +1338,11 @@ class TmdbShowsCard extends LitElement {
     .ep-select:disabled { opacity: 0.5; cursor: default; }
     .new-ep-alert { font-size: 0.85rem; padding: 10px 12px; border-radius: var(--polr-radius); margin-bottom: 6px; background: color-mix(in srgb, var(--warning-color, #ff9800) 18%, transparent); color: var(--warning-color, #ff9800); }
     .new-ep-alert strong { color: var(--primary-text-color); }
+    .progress-line { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 0.95rem; }
+    .progress-pill { font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+    .pill-new { background: color-mix(in srgb, var(--warning-color, #ff9800) 22%, transparent); color: var(--warning-color, #ff9800); }
+    .pill-ok { background: color-mix(in srgb, var(--success-color, #43a047) 22%, transparent); color: var(--success-color, #43a047); }
+    .link-btn { background: none; border: 0; color: var(--primary-color); cursor: pointer; font-size: 0.85rem; padding: 8px 4px; }
     .upcoming-ep { font-size: 0.75rem; color: var(--secondary-text-color); margin-bottom: 5px; }
     .ep-latest-hint { font-size: 0.72rem; color: var(--secondary-text-color); margin-top: 3px; }
     .stars { display: flex; align-items: center; gap: 1px; }
