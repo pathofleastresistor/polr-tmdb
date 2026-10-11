@@ -701,7 +701,36 @@ class TmdbShowsCard extends LitElement {
     if (item.status === "want_to_watch" && item.current_season) {
       return `Stopped at S${item.current_season}E${item.current_episode || 1}`;
     }
+    if (item.media_type === "tv" && this._isWatching(item)) return this._watchingSub(item);
     return null;
+  }
+
+  // For a show in progress: how it's airing, or how much is left.
+  //  - Airing weekly:      "New episodes Thursdays"
+  //  - Airing with a gap:  "Next episode Oct 28"
+  //  - Already out:        "6 episodes left" (this season) / "2 more seasons"
+  _watchingSub(item) {
+    const last = item.last_episode_to_air;
+    const next = item.next_episode_to_air;
+    if (next?.air_date && !item.show_ended) {
+      const gap = last?.air_date
+        ? Math.round((new Date(next.air_date + "T12:00:00") - new Date(last.air_date + "T12:00:00")) / 86400000)
+        : null;
+      const days = this._daysUntil(next.air_date);
+      if (gap !== null && gap <= 8) {
+        const day = new Date(next.air_date + "T12:00:00").toLocaleDateString(undefined, { weekday: "long" });
+        return `New episodes ${day}s`;
+      }
+      if (days !== null && days > 0) return `Next episode ${this._whenLabel(next.air_date)}`;
+    }
+    const s = item.current_season || 0, e = item.current_episode || 0;
+    if (!last || !s) return null;
+    if (s === last.season_number) {
+      const left = last.episode_number - e;
+      return left > 0 ? `${left} episode${left === 1 ? "" : "s"} left` : null;
+    }
+    const more = last.season_number - s;
+    return more > 0 ? `${more} more season${more === 1 ? "" : "s"}` : null;
   }
 
   _renderPoster(item, showStatus = false) {
