@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.1] - 2026-10-11
+
+### Fixed
+- On a phone, swiping back (or pressing Back) while a dialog is open now
+  closes that dialog instead of leaving the dashboard. Search/Library and a
+  show's details each count as one step, so Back from a show opened inside
+  Library returns you to Library
+
 ## [1.4.0] - 2026-10-10
 
 A much simpler card. Two things to track: what you're watching, and your queue.

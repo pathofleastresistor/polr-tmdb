@@ -73,6 +73,16 @@ class TmdbShowsCard extends LitElement {
     this._previewLoading = false;
     this._previewSeq = 0;
     this._onKeydown = (e) => { if (e.key === "Escape") this._closeTopLayer(); };
+    // Back (a phone's swipe-back included) closes the top dialog instead of
+    // leaving the dashboard: every open dialog layer owns one history entry.
+    this._historyDepth = 0;
+    this._ignorePop = false;
+    this._onPopState = () => {
+      if (this._ignorePop) { this._ignorePop = false; return; }
+      if (this._historyDepth === 0) return; // not ours: HA navigating
+      this._historyDepth--;
+      this._closeTopLayer();
+    };
     this._searchQuery = "";
     this._searchType = "";
     this._searchResults = null;
@@ -114,6 +124,7 @@ class TmdbShowsCard extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     window.addEventListener("keydown", this._onKeydown);
+    window.addEventListener("popstate", this._onPopState);
     // HA detaches and re-attaches cards when switching views; pick the
     // event subscription back up (and catch up on what we missed).
     if (this._loaded && !this._unsubEvents) {
@@ -125,6 +136,8 @@ class TmdbShowsCard extends LitElement {
   disconnectedCallback() {
     super.disconnectedCallback();
     window.removeEventListener("keydown", this._onKeydown);
+    window.removeEventListener("popstate", this._onPopState);
+    this._historyDepth = 0;
     clearTimeout(this._searchTimer);
     if (this._unsubEvents) this._unsubEvents.then((fn) => fn && fn());
     this._unsubEvents = null;
@@ -253,6 +266,23 @@ class TmdbShowsCard extends LitElement {
     this._dismissing = null;
     this._previewSeq++; // drop any in-flight preview
     this._previewLoading = false;
+  }
+
+  // Keep browser history in step with the open dialogs (Search/Library, then
+  // Details on top): push one entry per layer that opened, and when a layer
+  // closes by any other route (✕, Esc, tapping outside) take its entry back off.
+  updated() {
+    const depth = (this._modal ? 1 : 0) + (this._detail ? 1 : 0);
+    if (depth > this._historyDepth) {
+      for (let i = this._historyDepth; i < depth; i++) history.pushState({ polrDialog: true }, "");
+      this._historyDepth = depth;
+    } else if (depth < this._historyDepth) {
+      const extra = this._historyDepth - depth;
+      this._historyDepth = depth;
+      this._ignorePop = true;
+      setTimeout(() => (this._ignorePop = false), 500); // in case no popstate comes
+      history.go(-extra);
+    }
   }
 
   _closeTopLayer() {
