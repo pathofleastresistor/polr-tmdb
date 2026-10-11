@@ -1,56 +1,46 @@
-var jt=Object.defineProperty;var It=(o,t,e)=>t in o?jt(o,t,{enumerable:!0,configurable:!0,writable:!0,value:e}):o[t]=e;var N=(o,t,e)=>(It(o,typeof t!="symbol"?t+"":t,e),e);var q=globalThis,F=q.ShadowRoot&&(q.ShadyCSS===void 0||q.ShadyCSS.nativeShadow)&&"adoptedStyleSheets"in Document.prototype&&"replace"in CSSStyleSheet.prototype,et=Symbol(),pt=new WeakMap,U=class{constructor(t,e,s){if(this._$cssResult$=!0,s!==et)throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");this.cssText=t,this.t=e}get styleSheet(){let t=this.o,e=this.t;if(F&&t===void 0){let s=e!==void 0&&e.length===1;s&&(t=pt.get(e)),t===void 0&&((this.o=t=new CSSStyleSheet).replaceSync(this.cssText),s&&pt.set(e,t))}return t}toString(){return this.cssText}},ht=o=>new U(typeof o=="string"?o:o+"",void 0,et),V=(o,...t)=>{let e=o.length===1?o[0]:t.reduce((s,i,r)=>s+(n=>{if(n._$cssResult$===!0)return n.cssText;if(typeof n=="number")return n;throw Error("Value passed to 'css' function must be a 'css' function result: "+n+". Use 'unsafeCSS' to pass non-literal values, but take care to ensure page security.")})(i)+o[r+1],o[0]);return new U(e,o,et)},ut=(o,t)=>{if(F)o.adoptedStyleSheets=t.map(e=>e instanceof CSSStyleSheet?e:e.styleSheet);else for(let e of t){let s=document.createElement("style"),i=q.litNonce;i!==void 0&&s.setAttribute("nonce",i),s.textContent=e.cssText,o.appendChild(s)}},st=F?o=>o:o=>o instanceof CSSStyleSheet?(t=>{let e="";for(let s of t.cssRules)e+=s.cssText;return ht(e)})(o):o;var{is:Ht,defineProperty:Wt,getOwnPropertyDescriptor:Bt,getOwnPropertyNames:qt,getOwnPropertySymbols:Ft,getPrototypeOf:Vt}=Object,$=globalThis,gt=$.trustedTypes,Kt=gt?gt.emptyScript:"",Qt=$.reactiveElementPolyfillSupport,L=(o,t)=>o,it={toAttribute(o,t){switch(t){case Boolean:o=o?Kt:null;break;case Object:case Array:o=o==null?o:JSON.stringify(o)}return o},fromAttribute(o,t){let e=o;switch(t){case Boolean:e=o!==null;break;case Number:e=o===null?null:Number(o);break;case Object:case Array:try{e=JSON.parse(o)}catch{e=null}}return e}},mt=(o,t)=>!Ht(o,t),_t={attribute:!0,type:String,converter:it,reflect:!1,useDefault:!1,hasChanged:mt};Symbol.metadata??(Symbol.metadata=Symbol("metadata")),$.litPropertyMetadata??($.litPropertyMetadata=new WeakMap);var v=class extends HTMLElement{static addInitializer(t){this._$Ei(),(this.l??(this.l=[])).push(t)}static get observedAttributes(){return this.finalize(),this._$Eh&&[...this._$Eh.keys()]}static createProperty(t,e=_t){if(e.state&&(e.attribute=!1),this._$Ei(),this.prototype.hasOwnProperty(t)&&((e=Object.create(e)).wrapped=!0),this.elementProperties.set(t,e),!e.noAccessor){let s=Symbol(),i=this.getPropertyDescriptor(t,s,e);i!==void 0&&Wt(this.prototype,t,i)}}static getPropertyDescriptor(t,e,s){let{get:i,set:r}=Bt(this.prototype,t)??{get(){return this[e]},set(n){this[e]=n}};return{get:i,set(n){let c=i?.call(this);r?.call(this,n),this.requestUpdate(t,c,s)},configurable:!0,enumerable:!0}}static getPropertyOptions(t){return this.elementProperties.get(t)??_t}static _$Ei(){if(this.hasOwnProperty(L("elementProperties")))return;let t=Vt(this);t.finalize(),t.l!==void 0&&(this.l=[...t.l]),this.elementProperties=new Map(t.elementProperties)}static finalize(){if(this.hasOwnProperty(L("finalized")))return;if(this.finalized=!0,this._$Ei(),this.hasOwnProperty(L("properties"))){let e=this.properties,s=[...qt(e),...Ft(e)];for(let i of s)this.createProperty(i,e[i])}let t=this[Symbol.metadata];if(t!==null){let e=litPropertyMetadata.get(t);if(e!==void 0)for(let[s,i]of e)this.elementProperties.set(s,i)}this._$Eh=new Map;for(let[e,s]of this.elementProperties){let i=this._$Eu(e,s);i!==void 0&&this._$Eh.set(i,e)}this.elementStyles=this.finalizeStyles(this.styles)}static finalizeStyles(t){let e=[];if(Array.isArray(t)){let s=new Set(t.flat(1/0).reverse());for(let i of s)e.unshift(st(i))}else t!==void 0&&e.push(st(t));return e}static _$Eu(t,e){let s=e.attribute;return s===!1?void 0:typeof s=="string"?s:typeof t=="string"?t.toLowerCase():void 0}constructor(){super(),this._$Ep=void 0,this.isUpdatePending=!1,this.hasUpdated=!1,this._$Em=null,this._$Ev()}_$Ev(){this._$ES=new Promise(t=>this.enableUpdating=t),this._$AL=new Map,this._$E_(),this.requestUpdate(),this.constructor.l?.forEach(t=>t(this))}addController(t){(this._$EO??(this._$EO=new Set)).add(t),this.renderRoot!==void 0&&this.isConnected&&t.hostConnected?.()}removeController(t){this._$EO?.delete(t)}_$E_(){let t=new Map,e=this.constructor.elementProperties;for(let s of e.keys())this.hasOwnProperty(s)&&(t.set(s,this[s]),delete this[s]);t.size>0&&(this._$Ep=t)}createRenderRoot(){let t=this.shadowRoot??this.attachShadow(this.constructor.shadowRootOptions);return ut(t,this.constructor.elementStyles),t}connectedCallback(){this.renderRoot??(this.renderRoot=this.createRenderRoot()),this.enableUpdating(!0),this._$EO?.forEach(t=>t.hostConnected?.())}enableUpdating(t){}disconnectedCallback(){this._$EO?.forEach(t=>t.hostDisconnected?.())}attributeChangedCallback(t,e,s){this._$AK(t,s)}_$ET(t,e){let s=this.constructor.elementProperties.get(t),i=this.constructor._$Eu(t,s);if(i!==void 0&&s.reflect===!0){let r=(s.converter?.toAttribute!==void 0?s.converter:it).toAttribute(e,s.type);this._$Em=t,r==null?this.removeAttribute(i):this.setAttribute(i,r),this._$Em=null}}_$AK(t,e){let s=this.constructor,i=s._$Eh.get(t);if(i!==void 0&&this._$Em!==i){let r=s.getPropertyOptions(i),n=typeof r.converter=="function"?{fromAttribute:r.converter}:r.converter?.fromAttribute!==void 0?r.converter:it;this._$Em=i;let c=n.fromAttribute(e,r.type);this[i]=c??this._$Ej?.get(i)??c,this._$Em=null}}requestUpdate(t,e,s,i=!1,r){if(t!==void 0){let n=this.constructor;if(i===!1&&(r=this[t]),s??(s=n.getPropertyOptions(t)),!((s.hasChanged??mt)(r,e)||s.useDefault&&s.reflect&&r===this._$Ej?.get(t)&&!this.hasAttribute(n._$Eu(t,s))))return;this.C(t,e,s)}this.isUpdatePending===!1&&(this._$ES=this._$EP())}C(t,e,{useDefault:s,reflect:i,wrapped:r},n){s&&!(this._$Ej??(this._$Ej=new Map)).has(t)&&(this._$Ej.set(t,n??e??this[t]),r!==!0||n!==void 0)||(this._$AL.has(t)||(this.hasUpdated||s||(e=void 0),this._$AL.set(t,e)),i===!0&&this._$Em!==t&&(this._$Eq??(this._$Eq=new Set)).add(t))}async _$EP(){this.isUpdatePending=!0;try{await this._$ES}catch(e){Promise.reject(e)}let t=this.scheduleUpdate();return t!=null&&await t,!this.isUpdatePending}scheduleUpdate(){return this.performUpdate()}performUpdate(){if(!this.isUpdatePending)return;if(!this.hasUpdated){if(this.renderRoot??(this.renderRoot=this.createRenderRoot()),this._$Ep){for(let[i,r]of this._$Ep)this[i]=r;this._$Ep=void 0}let s=this.constructor.elementProperties;if(s.size>0)for(let[i,r]of s){let{wrapped:n}=r,c=this[i];n!==!0||this._$AL.has(i)||c===void 0||this.C(i,void 0,r,c)}}let t=!1,e=this._$AL;try{t=this.shouldUpdate(e),t?(this.willUpdate(e),this._$EO?.forEach(s=>s.hostUpdate?.()),this.update(e)):this._$EM()}catch(s){throw t=!1,this._$EM(),s}t&&this._$AE(e)}willUpdate(t){}_$AE(t){this._$EO?.forEach(e=>e.hostUpdated?.()),this.hasUpdated||(this.hasUpdated=!0,this.firstUpdated(t)),this.updated(t)}_$EM(){this._$AL=new Map,this.isUpdatePending=!1}get updateComplete(){return this.getUpdateComplete()}getUpdateComplete(){return this._$ES}shouldUpdate(t){return!0}update(t){this._$Eq&&(this._$Eq=this._$Eq.forEach(e=>this._$ET(e,this[e]))),this._$EM()}updated(t){}firstUpdated(t){}};v.elementStyles=[],v.shadowRootOptions={mode:"open"},v[L("elementProperties")]=new Map,v[L("finalized")]=new Map,Qt?.({ReactiveElement:v}),($.reactiveElementVersions??($.reactiveElementVersions=[])).push("2.1.2");var D=globalThis,ft=o=>o,K=D.trustedTypes,vt=K?K.createPolicy("lit-html",{createHTML:o=>o}):void 0,rt="$lit$",b=`lit$${Math.random().toFixed(9).slice(2)}$`,at="?"+b,Yt=`<${at}>`,E=document,O=()=>E.createComment(""),j=o=>o===null||typeof o!="object"&&typeof o!="function",nt=Array.isArray,At=o=>nt(o)||typeof o?.[Symbol.iterator]=="function",ot=`[ 	
-\f\r]`,R=/<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g,bt=/-->/g,xt=/>/g,S=RegExp(`>|${ot}(?:([^\\s"'>=/]+)(${ot}*=${ot}*(?:[^ 	
-\f\r"'\`<>=]|("|')|))|$)`,"g"),yt=/'/g,$t=/"/g,St=/^(?:script|style|textarea|title)$/i,lt=o=>(t,...e)=>({_$litType$:o,strings:t,values:e}),a=lt(1),ne=lt(2),le=lt(3),x=Symbol.for("lit-noChange"),d=Symbol.for("lit-nothing"),wt=new WeakMap,k=E.createTreeWalker(E,129);function kt(o,t){if(!nt(o)||!o.hasOwnProperty("raw"))throw Error("invalid template strings array");return vt!==void 0?vt.createHTML(t):t}var Et=(o,t)=>{let e=o.length-1,s=[],i,r=t===2?"<svg>":t===3?"<math>":"",n=R;for(let c=0;c<e;c++){let l=o[c],u,m,p=-1,_=0;for(;_<l.length&&(n.lastIndex=_,m=n.exec(l),m!==null);)_=n.lastIndex,n===R?m[1]==="!--"?n=bt:m[1]!==void 0?n=xt:m[2]!==void 0?(St.test(m[2])&&(i=RegExp("</"+m[2],"g")),n=S):m[3]!==void 0&&(n=S):n===S?m[0]===">"?(n=i??R,p=-1):m[1]===void 0?p=-2:(p=n.lastIndex-m[2].length,u=m[1],n=m[3]===void 0?S:m[3]==='"'?$t:yt):n===$t||n===yt?n=S:n===bt||n===xt?n=R:(n=S,i=void 0);let g=n===S&&o[c+1].startsWith("/>")?" ":"";r+=n===R?l+Yt:p>=0?(s.push(u),l.slice(0,p)+rt+l.slice(p)+b+g):l+b+(p===-2?c:g)}return[kt(o,r+(o[e]||"<?>")+(t===2?"</svg>":t===3?"</math>":"")),s]},I=class o{constructor({strings:t,_$litType$:e},s){let i;this.parts=[];let r=0,n=0,c=t.length-1,l=this.parts,[u,m]=Et(t,e);if(this.el=o.createElement(u,s),k.currentNode=this.el.content,e===2||e===3){let p=this.el.content.firstChild;p.replaceWith(...p.childNodes)}for(;(i=k.nextNode())!==null&&l.length<c;){if(i.nodeType===1){if(i.hasAttributes())for(let p of i.getAttributeNames())if(p.endsWith(rt)){let _=m[n++],g=i.getAttribute(p).split(b),h=/([.?@])?(.*)/.exec(_);l.push({type:1,index:r,name:h[2],strings:g,ctor:h[1]==="."?Y:h[1]==="?"?J:h[1]==="@"?G:T}),i.removeAttribute(p)}else p.startsWith(b)&&(l.push({type:6,index:r}),i.removeAttribute(p));if(St.test(i.tagName)){let p=i.textContent.split(b),_=p.length-1;if(_>0){i.textContent=K?K.emptyScript:"";for(let g=0;g<_;g++)i.append(p[g],O()),k.nextNode(),l.push({type:2,index:++r});i.append(p[_],O())}}}else if(i.nodeType===8)if(i.data===at)l.push({type:2,index:r});else{let p=-1;for(;(p=i.data.indexOf(b,p+1))!==-1;)l.push({type:7,index:r}),p+=b.length-1}r++}}static createElement(t,e){let s=E.createElement("template");return s.innerHTML=t,s}};function C(o,t,e=o,s){if(t===x)return t;let i=s!==void 0?e._$Co?.[s]:e._$Cl,r=j(t)?void 0:t._$litDirective$;return i?.constructor!==r&&(i?._$AO?.(!1),r===void 0?i=void 0:(i=new r(o),i._$AT(o,e,s)),s!==void 0?(e._$Co??(e._$Co=[]))[s]=i:e._$Cl=i),i!==void 0&&(t=C(o,i._$AS(o,t.values),i,s)),t}var Q=class{constructor(t,e){this._$AV=[],this._$AN=void 0,this._$AD=t,this._$AM=e}get parentNode(){return this._$AM.parentNode}get _$AU(){return this._$AM._$AU}u(t){let{el:{content:e},parts:s}=this._$AD,i=(t?.creationScope??E).importNode(e,!0);k.currentNode=i;let r=k.nextNode(),n=0,c=0,l=s[0];for(;l!==void 0;){if(n===l.index){let u;l.type===2?u=new P(r,r.nextSibling,this,t):l.type===1?u=new l.ctor(r,l.name,l.strings,this,t):l.type===6&&(u=new Z(r,this,t)),this._$AV.push(u),l=s[++c]}n!==l?.index&&(r=k.nextNode(),n++)}return k.currentNode=E,i}p(t){let e=0;for(let s of this._$AV)s!==void 0&&(s.strings!==void 0?(s._$AI(t,s,e),e+=s.strings.length-2):s._$AI(t[e])),e++}},P=class o{get _$AU(){return this._$AM?._$AU??this._$Cv}constructor(t,e,s,i){this.type=2,this._$AH=d,this._$AN=void 0,this._$AA=t,this._$AB=e,this._$AM=s,this.options=i,this._$Cv=i?.isConnected??!0}get parentNode(){let t=this._$AA.parentNode,e=this._$AM;return e!==void 0&&t?.nodeType===11&&(t=e.parentNode),t}get startNode(){return this._$AA}get endNode(){return this._$AB}_$AI(t,e=this){t=C(this,t,e),j(t)?t===d||t==null||t===""?(this._$AH!==d&&this._$AR(),this._$AH=d):t!==this._$AH&&t!==x&&this._(t):t._$litType$!==void 0?this.$(t):t.nodeType!==void 0?this.T(t):At(t)?this.k(t):this._(t)}O(t){return this._$AA.parentNode.insertBefore(t,this._$AB)}T(t){this._$AH!==t&&(this._$AR(),this._$AH=this.O(t))}_(t){this._$AH!==d&&j(this._$AH)?this._$AA.nextSibling.data=t:this.T(E.createTextNode(t)),this._$AH=t}$(t){let{values:e,_$litType$:s}=t,i=typeof s=="number"?this._$AC(t):(s.el===void 0&&(s.el=I.createElement(kt(s.h,s.h[0]),this.options)),s);if(this._$AH?._$AD===i)this._$AH.p(e);else{let r=new Q(i,this),n=r.u(this.options);r.p(e),this.T(n),this._$AH=r}}_$AC(t){let e=wt.get(t.strings);return e===void 0&&wt.set(t.strings,e=new I(t)),e}k(t){nt(this._$AH)||(this._$AH=[],this._$AR());let e=this._$AH,s,i=0;for(let r of t)i===e.length?e.push(s=new o(this.O(O()),this.O(O()),this,this.options)):s=e[i],s._$AI(r),i++;i<e.length&&(this._$AR(s&&s._$AB.nextSibling,i),e.length=i)}_$AR(t=this._$AA.nextSibling,e){for(this._$AP?.(!1,!0,e);t!==this._$AB;){let s=ft(t).nextSibling;ft(t).remove(),t=s}}setConnected(t){this._$AM===void 0&&(this._$Cv=t,this._$AP?.(t))}},T=class{get tagName(){return this.element.tagName}get _$AU(){return this._$AM._$AU}constructor(t,e,s,i,r){this.type=1,this._$AH=d,this._$AN=void 0,this.element=t,this.name=e,this._$AM=i,this.options=r,s.length>2||s[0]!==""||s[1]!==""?(this._$AH=Array(s.length-1).fill(new String),this.strings=s):this._$AH=d}_$AI(t,e=this,s,i){let r=this.strings,n=!1;if(r===void 0)t=C(this,t,e,0),n=!j(t)||t!==this._$AH&&t!==x,n&&(this._$AH=t);else{let c=t,l,u;for(t=r[0],l=0;l<r.length-1;l++)u=C(this,c[s+l],e,l),u===x&&(u=this._$AH[l]),n||(n=!j(u)||u!==this._$AH[l]),u===d?t=d:t!==d&&(t+=(u??"")+r[l+1]),this._$AH[l]=u}n&&!i&&this.j(t)}j(t){t===d?this.element.removeAttribute(this.name):this.element.setAttribute(this.name,t??"")}},Y=class extends T{constructor(){super(...arguments),this.type=3}j(t){this.element[this.name]=t===d?void 0:t}},J=class extends T{constructor(){super(...arguments),this.type=4}j(t){this.element.toggleAttribute(this.name,!!t&&t!==d)}},G=class extends T{constructor(t,e,s,i,r){super(t,e,s,i,r),this.type=5}_$AI(t,e=this){if((t=C(this,t,e,0)??d)===x)return;let s=this._$AH,i=t===d&&s!==d||t.capture!==s.capture||t.once!==s.once||t.passive!==s.passive,r=t!==d&&(s===d||i);i&&this.element.removeEventListener(this.name,this,s),r&&this.element.addEventListener(this.name,this,t),this._$AH=t}handleEvent(t){typeof this._$AH=="function"?this._$AH.call(this.options?.host??this.element,t):this._$AH.handleEvent(t)}},Z=class{constructor(t,e,s){this.element=t,this.type=6,this._$AN=void 0,this._$AM=e,this.options=s}get _$AU(){return this._$AM._$AU}_$AI(t){C(this,t)}},Ct={M:rt,P:b,A:at,C:1,L:Et,R:Q,D:At,V:C,I:P,H:T,N:J,U:G,B:Y,F:Z},Jt=D.litHtmlPolyfillSupport;Jt?.(I,P),(D.litHtmlVersions??(D.litHtmlVersions=[])).push("3.3.2");var Tt=(o,t,e)=>{let s=e?.renderBefore??t,i=s._$litPart$;if(i===void 0){let r=e?.renderBefore??null;s._$litPart$=i=new P(t.insertBefore(O(),r),r,void 0,e??{})}return i._$AI(o),i};var H=globalThis,y=class extends v{constructor(){super(...arguments),this.renderOptions={host:this},this._$Do=void 0}createRenderRoot(){var e;let t=super.createRenderRoot();return(e=this.renderOptions).renderBefore??(e.renderBefore=t.firstChild),t}update(t){let e=this.render();this.hasUpdated||(this.renderOptions.isConnected=this.isConnected),super.update(t),this._$Do=Tt(e,this.renderRoot,this.renderOptions)}connectedCallback(){super.connectedCallback(),this._$Do?.setConnected(!0)}disconnectedCallback(){super.disconnectedCallback(),this._$Do?.setConnected(!1)}render(){return x}};y._$litElement$=!0,y.finalized=!0,H.litElementHydrateSupport?.({LitElement:y});var Gt=H.litElementPolyfillSupport;Gt?.({LitElement:y});(H.litElementVersions??(H.litElementVersions=[])).push("4.2.2");var zt={ATTRIBUTE:1,CHILD:2,PROPERTY:3,BOOLEAN_ATTRIBUTE:4,EVENT:5,ELEMENT:6},Pt=o=>(...t)=>({_$litDirective$:o,values:t}),X=class{constructor(t){}get _$AU(){return this._$AM._$AU}_$AT(t,e,s){this._$Ct=t,this._$AM=e,this._$Ci=s}_$AS(t,e){return this.update(t,e)}update(t,e){return this.render(...e)}};var{I:Zt}=Ct,Mt=o=>o;var Nt=()=>document.createComment(""),M=(o,t,e)=>{let s=o._$AA.parentNode,i=t===void 0?o._$AB:t._$AA;if(e===void 0){let r=s.insertBefore(Nt(),i),n=s.insertBefore(Nt(),i);e=new Zt(r,n,o,o.options)}else{let r=e._$AB.nextSibling,n=e._$AM,c=n!==o;if(c){let l;e._$AQ?.(o),e._$AM=o,e._$AP!==void 0&&(l=o._$AU)!==n._$AU&&e._$AP(l)}if(r!==i||c){let l=e._$AA;for(;l!==r;){let u=Mt(l).nextSibling;Mt(s).insertBefore(l,i),l=u}}}return e},w=(o,t,e=o)=>(o._$AI(t,e),o),Xt={},Ut=(o,t=Xt)=>o._$AH=t,Lt=o=>o._$AH,tt=o=>{o._$AR(),o._$AA.remove()};var Rt=(o,t,e)=>{let s=new Map;for(let i=t;i<=e;i++)s.set(o[i],i);return s},A=Pt(class extends X{constructor(o){if(super(o),o.type!==zt.CHILD)throw Error("repeat() can only be used in text expressions")}dt(o,t,e){let s;e===void 0?e=t:t!==void 0&&(s=t);let i=[],r=[],n=0;for(let c of o)i[n]=s?s(c,n):n,r[n]=e(c,n),n++;return{values:r,keys:i}}render(o,t,e){return this.dt(o,t,e).values}update(o,[t,e,s]){let i=Lt(o),{values:r,keys:n}=this.dt(t,e,s);if(!Array.isArray(i))return this.ut=n,r;let c=this.ut??(this.ut=[]),l=[],u,m,p=0,_=i.length-1,g=0,h=r.length-1;for(;p<=_&&g<=h;)if(i[p]===null)p++;else if(i[_]===null)_--;else if(c[p]===n[g])l[g]=w(i[p],r[g]),p++,g++;else if(c[_]===n[h])l[h]=w(i[_],r[h]),_--,h--;else if(c[p]===n[h])l[h]=w(i[p],r[h]),M(o,l[h+1],i[p]),p++,h--;else if(c[_]===n[g])l[g]=w(i[_],r[g]),M(o,i[p],i[_]),_--,g++;else if(u===void 0&&(u=Rt(n,g,h),m=Rt(c,p,_)),u.has(c[p]))if(u.has(c[_])){let f=m.get(n[g]),z=f!==void 0?i[f]:null;if(z===null){let ct=M(o,i[p]);w(ct,r[g]),l[g]=ct}else l[g]=w(z,r[g]),M(o,i[p],z),i[f]=null;g++}else tt(i[_]),_--;else tt(i[p]),p++;for(;g<=h;){let f=M(o,l[h+1]);w(f,r[g]),l[g++]=f}for(;p<=_;){let f=i[p++];f!==null&&tt(f)}return this.ut=n,Ut(o,l),x}});function te(o){return o?new Date(o+"T12:00:00").toLocaleDateString(void 0,{month:"short",day:"numeric",year:"numeric"}):""}var Dt={want_to_watch:"Up Next",watching:"Watching",watched:"Watched",paused:"Watching",suggested:"Suggested",dismissed:"Not for us"},dt=["new","soon","upnext","suggested"],ee=["Too stressful","Too slow","Feels dated","Not our genre","Already seen it","Just not interested"],Ot={want_to_watch:"#6d6d6d",watching:"#1976d2",watched:"#2e7d32",paused:"#1976d2",suggested:"#7b1fa2",dismissed:"#6d6d6d"},W=class extends y{constructor(){super(),this._items=[],this._detail=null,this._dismissing=null,this._toast=null,this._loaded=!1,this._unsubEvents=null,this._seasonCache={},this._modal=null,this._libraryFilter="all",this._previewLoading=!1,this._previewSeq=0,this._onKeydown=t=>{t.key==="Escape"&&this._closeTopLayer()},this._searchQuery="",this._searchType="",this._searchResults=null,this._searching=!1,this._adding=new Set,this._searchSeq=0}static getConfigElement(){return document.createElement("polr-tmdb-card-editor")}static getStubConfig(){return{title:"Watch Tonight"}}setConfig(t){let e=(t.sections||dt).filter(i=>dt.includes(i));if(!e.length)throw new Error("sections must include at least one of: "+dt.join(", "));let s=(t.tvs||[]).map(i=>typeof i=="string"?{entity:i}:i);for(let i of s)if(!i.entity||!i.entity.startsWith("media_player."))throw new Error("Each entry in tvs needs a media_player entity");this._config={title:"Watch Tonight",search:!0,...t,sections:e,tvs:s}}set hass(t){this._hass=t,this._loaded||(this._loaded=!0,this._loadItems(),this._subscribeEvents())}connectedCallback(){super.connectedCallback(),window.addEventListener("keydown",this._onKeydown),this._loaded&&!this._unsubEvents&&(this._loadItems(),this._subscribeEvents())}disconnectedCallback(){super.disconnectedCallback(),window.removeEventListener("keydown",this._onKeydown),clearTimeout(this._searchTimer),this._unsubEvents&&this._unsubEvents.then(t=>t&&t()),this._unsubEvents=null}async _loadItems(){try{let t=await this._hass.connection.sendMessagePromise({type:"polr_tmdb/items"})||[];this._items=t.map(e=>this._normalize(e))}catch(t){console.error("polr-tmdb-card: load failed",t)}}async _subscribeEvents(){this._unsubEvents=this._hass.connection.subscribeEvents(t=>{this._loadItems();let e=t.data.item;!this._detail||!e||(e.item_id===this._detail.item_id?this._detail=t.data.action==="remove"?null:this._normalize(e):!this._detail.item_id&&this._sameTitle(e,this._detail)&&(this._detail=this._normalize(e)))},"polr_tmdb_updated")}_normalize(t){return t.media_type==="tv"&&t.show_ended&&["watching","paused"].includes(t.status)&&this._isCaughtUp(t)?{...t,status:"watched"}:t}async _updateItem(t,e){let s=Object.fromEntries(Object.entries(e).filter(([i,r])=>r!=null||i==="current_season"||i==="current_episode"));try{await this._hass.connection.sendMessagePromise({type:"polr_tmdb/update",item_id:t,...s})}catch(i){console.error("polr-tmdb-card: update failed",i)}}async _callService(t,e,s){try{await this._hass.callService("polr_tmdb",t,e),s&&this._showToast(s)}catch(i){console.error(`polr-tmdb-card: ${t} failed`,i),this._showToast(i?.message||"Something went wrong")}}_showToast(t){this._toast=t,clearTimeout(this._toastTimer),this._toastTimer=setTimeout(()=>this._toast=null,3500)}_tvName(t){return t.name||this._hass?.states?.[t.entity]?.attributes?.friendly_name||t.entity}_openOnTv(t,e){this._showToast(`Opening ${t.title} on ${this._tvName(e)}\u2026`),this._callService("open_on_tv",{item_id:t.item_id,entity_id:e.entity})}_addSuggestion(t){this._callService("update_status",{item_id:t.item_id,status:"want_to_watch"},`Added ${t.title} to Up Next`),this._detail?.item_id===t.item_id&&(this._detail={...t,status:"want_to_watch"})}_dismiss(t,e){this._dismissing=null,this._callService("dismiss",{item_id:t.item_id,reason:e||""},`Passed on ${t.title}`),this._detail?.item_id===t.item_id&&(this._detail=null)}async _removeItem(t){if(confirm("Remove from watchlist?"))try{await this._hass.connection.sendMessagePromise({type:"polr_tmdb/remove",item_id:t})}catch(e){console.error("polr-tmdb-card: remove failed",e)}}async _fetchSeasonEpisodes(t,e){let s=`${t}:${e}`;if(!this._seasonCache[s])try{let i=await this._hass.connection.sendMessagePromise({type:"polr_tmdb/season",tmdb_id:t,season_number:e});this._seasonCache[s]=i||[],this.requestUpdate()}catch(i){console.error("season fetch",i)}}_getSeasonEpisodes(t,e){if(!e)return[];let s=`${t}:${e}`;return this._seasonCache[s]?this._seasonCache[s]:(this._fetchSeasonEpisodes(t,e),null)}_openModal(t){this._modal=t,t==="search"&&this.updateComplete.then(()=>this.renderRoot.querySelector(".search-input")?.focus())}_closeModal(){this._modal=null,this._dismissing=null}_closeDetail(){this._detail=null,this._editingProgress=null,this._dismissing=null,this._previewSeq++,this._previewLoading=!1}_closeTopLayer(){this._detail?this._closeDetail():this._modal&&this._closeModal()}_sameTitle(t,e){return t.tmdb_id===e.tmdb_id&&t.media_type===e.media_type}_onSearchInput(t){this._searchQuery=t,clearTimeout(this._searchTimer),this._searchTimer=setTimeout(()=>this._runSearch(),400)}_setSearchType(t){this._searchType=t,this._runSearch()}async _runSearch(){clearTimeout(this._searchTimer);let t=this._searchQuery.trim(),e=++this._searchSeq;if(!t){this._searchResults=null,this._searching=!1;return}this._searching=!0;let s={query:t,limit:20};this._searchType&&(s.media_type=this._searchType);try{let i=await this._hass.connection.sendMessagePromise({type:"call_service",domain:"polr_tmdb",service:"search",service_data:s,return_response:!0});e===this._searchSeq&&(this._searchResults=i?.response?.results||[])}catch(i){console.error("polr-tmdb-card: search failed",i),e===this._searchSeq&&(this._searchResults=[],this._showToast(i?.message||"Search failed"))}finally{e===this._searchSeq&&(this._searching=!1)}}_itemForResult(t){return this._items.find(e=>this._sameTitle(e,t))}_openResult(t){let e=this._itemForResult(t);if(e){this._detail=e;return}this._openPreview(t)}async _openPreview(t){let e=++this._previewSeq;this._detail={item_id:null,status:null,tmdb_id:t.tmdb_id,media_type:t.media_type,title:t.title,poster_path:t.poster_url,backdrop_path:t.backdrop_url,overview:t.overview,vote_average:t.rating,release_date:t.year||""},this._previewLoading=!0;try{let s=await this._hass.connection.sendMessagePromise({type:"polr_tmdb/preview",tmdb_id:t.tmdb_id,media_type:t.media_type});e===this._previewSeq&&!this._detail?.item_id&&(this._detail=s)}catch(s){console.error("polr-tmdb-card: preview failed",s)}finally{e===this._previewSeq&&(this._previewLoading=!1)}}async _addTitle(t,e="want_to_watch"){let s=`${t.media_type}:${t.tmdb_id}`;this._adding=new Set([...this._adding,s]);try{let i=await this._hass.connection.sendMessagePromise({type:"polr_tmdb/add",tmdb_id:t.tmdb_id,media_type:t.media_type,status:e});await this._loadItems(),this._showToast(`Added ${t.title} to ${e==="watching"?"Watching":"Up Next"}`),this._detail&&!this._detail.item_id&&this._sameTitle(this._detail,t)&&(this._detail=i)}catch(i){console.error("polr-tmdb-card: add failed",i),this._showToast(i?.message||"Couldn't add that title")}finally{let i=new Set(this._adding);i.delete(s),this._adding=i}}_isAdding(t){return this._adding.has(`${t.media_type}:${t.tmdb_id}`)}_libraryItems(t){return[...t==="all"?this._items.filter(s=>s.status!=="dismissed"):t==="watching"?this._items.filter(s=>this._isWatching(s)&&!this._isWaiting(s)):t==="waiting"?this._items.filter(s=>this._isWaiting(s)):this._items.filter(s=>s.status===t)].sort((s,i)=>s.title.localeCompare(i.title))}_today(){let t=new Date;return`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`}_isWatching(t){return t.status==="watching"||t.status==="paused"}_isWaiting(t){return t.media_type==="tv"&&this._isWatching(t)&&this._isCaughtUp(t)&&!t.show_ended}_returnLabel(t){let e=t.next_episode_to_air?.air_date;return e?`Returns ${new Date(e+"T12:00:00").toLocaleDateString(void 0,{month:"short",day:"numeric"})}`:"On break"}_hasNewEpisode(t){if(t.status==="watched")return!1;if(t.has_new_episode)return!0;let e=t.next_episode_to_air;if(!e?.air_date||e.air_date>this._today())return!1;let s=t.current_season||0,i=t.current_episode||0;return s===0&&i===0?!0:e.season_number>s||e.season_number===s&&e.episode_number>i}_daysUntil(t){if(!t)return null;let e=new Date(t+"T12:00:00")-new Date;return Math.ceil(e/864e5)}_isComingSoon(t){if(t.media_type!=="tv"||!this._isWatching(t)||this._hasNewEpisode(t))return!1;let e=t.next_episode_to_air;if(!e?.air_date)return!1;let s=this._daysUntil(e.air_date);return s!==null&&s>0&&s<=14}get _newItems(){return this._items.filter(t=>["watching","paused"].includes(t.status)&&this._hasNewEpisode(t)).sort((t,e)=>t.title.localeCompare(e.title))}get _soonItems(){return this._items.filter(t=>this._isComingSoon(t)).sort((t,e)=>{let s=t.next_episode_to_air?.air_date||"9999",i=e.next_episode_to_air?.air_date||"9999";return s.localeCompare(i)})}get _upNextItems(){return this._items.filter(t=>t.status==="want_to_watch").sort((t,e)=>t.title.localeCompare(e.title))}get _suggestedItems(){return this._items.filter(t=>t.status==="suggested").sort((t,e)=>(e.suggestion?.suggested_at||"").localeCompare(t.suggestion?.suggested_at||""))}render(){if(!this._config)return d;let t=l=>this._config.sections.includes(l),e=t("new")?this._newItems:[],s=t("upnext")?this._upNextItems:[],i=t("soon")?this._soonItems:[],r=t("suggested")?this._suggestedItems:[],n=t("suggested")&&(this._config.default_section==="suggested"||!(t("new")||t("upnext")||t("soon"))),c=!e.length&&!s.length&&!i.length&&!(n&&r.length);return a`
+var jt=Object.defineProperty;var Dt=(o,t,e)=>t in o?jt(o,t,{enumerable:!0,configurable:!0,writable:!0,value:e}):o[t]=e;var R=(o,t,e)=>(Dt(o,typeof t!="symbol"?t+"":t,e),e);var F=globalThis,V=F.ShadowRoot&&(F.ShadyCSS===void 0||F.ShadyCSS.nativeShadow)&&"adoptedStyleSheets"in Document.prototype&&"replace"in CSSStyleSheet.prototype,st=Symbol(),pt=new WeakMap,L=class{constructor(t,e,s){if(this._$cssResult$=!0,s!==st)throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");this.cssText=t,this.t=e}get styleSheet(){let t=this.o,e=this.t;if(V&&t===void 0){let s=e!==void 0&&e.length===1;s&&(t=pt.get(e)),t===void 0&&((this.o=t=new CSSStyleSheet).replaceSync(this.cssText),s&&pt.set(e,t))}return t}toString(){return this.cssText}},ht=o=>new L(typeof o=="string"?o:o+"",void 0,st),Q=(o,...t)=>{let e=o.length===1?o[0]:t.reduce((s,i,r)=>s+(n=>{if(n._$cssResult$===!0)return n.cssText;if(typeof n=="number")return n;throw Error("Value passed to 'css' function must be a 'css' function result: "+n+". Use 'unsafeCSS' to pass non-literal values, but take care to ensure page security.")})(i)+o[r+1],o[0]);return new L(e,o,st)},ut=(o,t)=>{if(V)o.adoptedStyleSheets=t.map(e=>e instanceof CSSStyleSheet?e:e.styleSheet);else for(let e of t){let s=document.createElement("style"),i=F.litNonce;i!==void 0&&s.setAttribute("nonce",i),s.textContent=e.cssText,o.appendChild(s)}},it=V?o=>o:o=>o instanceof CSSStyleSheet?(t=>{let e="";for(let s of t.cssRules)e+=s.cssText;return ht(e)})(o):o;var{is:Ht,defineProperty:Wt,getOwnPropertyDescriptor:qt,getOwnPropertyNames:Bt,getOwnPropertySymbols:Ft,getPrototypeOf:Vt}=Object,w=globalThis,gt=w.trustedTypes,Qt=gt?gt.emptyScript:"",Kt=w.reactiveElementPolyfillSupport,U=(o,t)=>o,ot={toAttribute(o,t){switch(t){case Boolean:o=o?Qt:null;break;case Object:case Array:o=o==null?o:JSON.stringify(o)}return o},fromAttribute(o,t){let e=o;switch(t){case Boolean:e=o!==null;break;case Number:e=o===null?null:Number(o);break;case Object:case Array:try{e=JSON.parse(o)}catch{e=null}}return e}},mt=(o,t)=>!Ht(o,t),_t={attribute:!0,type:String,converter:ot,reflect:!1,useDefault:!1,hasChanged:mt};Symbol.metadata??(Symbol.metadata=Symbol("metadata")),w.litPropertyMetadata??(w.litPropertyMetadata=new WeakMap);var b=class extends HTMLElement{static addInitializer(t){this._$Ei(),(this.l??(this.l=[])).push(t)}static get observedAttributes(){return this.finalize(),this._$Eh&&[...this._$Eh.keys()]}static createProperty(t,e=_t){if(e.state&&(e.attribute=!1),this._$Ei(),this.prototype.hasOwnProperty(t)&&((e=Object.create(e)).wrapped=!0),this.elementProperties.set(t,e),!e.noAccessor){let s=Symbol(),i=this.getPropertyDescriptor(t,s,e);i!==void 0&&Wt(this.prototype,t,i)}}static getPropertyDescriptor(t,e,s){let{get:i,set:r}=qt(this.prototype,t)??{get(){return this[e]},set(n){this[e]=n}};return{get:i,set(n){let c=i?.call(this);r?.call(this,n),this.requestUpdate(t,c,s)},configurable:!0,enumerable:!0}}static getPropertyOptions(t){return this.elementProperties.get(t)??_t}static _$Ei(){if(this.hasOwnProperty(U("elementProperties")))return;let t=Vt(this);t.finalize(),t.l!==void 0&&(this.l=[...t.l]),this.elementProperties=new Map(t.elementProperties)}static finalize(){if(this.hasOwnProperty(U("finalized")))return;if(this.finalized=!0,this._$Ei(),this.hasOwnProperty(U("properties"))){let e=this.properties,s=[...Bt(e),...Ft(e)];for(let i of s)this.createProperty(i,e[i])}let t=this[Symbol.metadata];if(t!==null){let e=litPropertyMetadata.get(t);if(e!==void 0)for(let[s,i]of e)this.elementProperties.set(s,i)}this._$Eh=new Map;for(let[e,s]of this.elementProperties){let i=this._$Eu(e,s);i!==void 0&&this._$Eh.set(i,e)}this.elementStyles=this.finalizeStyles(this.styles)}static finalizeStyles(t){let e=[];if(Array.isArray(t)){let s=new Set(t.flat(1/0).reverse());for(let i of s)e.unshift(it(i))}else t!==void 0&&e.push(it(t));return e}static _$Eu(t,e){let s=e.attribute;return s===!1?void 0:typeof s=="string"?s:typeof t=="string"?t.toLowerCase():void 0}constructor(){super(),this._$Ep=void 0,this.isUpdatePending=!1,this.hasUpdated=!1,this._$Em=null,this._$Ev()}_$Ev(){this._$ES=new Promise(t=>this.enableUpdating=t),this._$AL=new Map,this._$E_(),this.requestUpdate(),this.constructor.l?.forEach(t=>t(this))}addController(t){(this._$EO??(this._$EO=new Set)).add(t),this.renderRoot!==void 0&&this.isConnected&&t.hostConnected?.()}removeController(t){this._$EO?.delete(t)}_$E_(){let t=new Map,e=this.constructor.elementProperties;for(let s of e.keys())this.hasOwnProperty(s)&&(t.set(s,this[s]),delete this[s]);t.size>0&&(this._$Ep=t)}createRenderRoot(){let t=this.shadowRoot??this.attachShadow(this.constructor.shadowRootOptions);return ut(t,this.constructor.elementStyles),t}connectedCallback(){this.renderRoot??(this.renderRoot=this.createRenderRoot()),this.enableUpdating(!0),this._$EO?.forEach(t=>t.hostConnected?.())}enableUpdating(t){}disconnectedCallback(){this._$EO?.forEach(t=>t.hostDisconnected?.())}attributeChangedCallback(t,e,s){this._$AK(t,s)}_$ET(t,e){let s=this.constructor.elementProperties.get(t),i=this.constructor._$Eu(t,s);if(i!==void 0&&s.reflect===!0){let r=(s.converter?.toAttribute!==void 0?s.converter:ot).toAttribute(e,s.type);this._$Em=t,r==null?this.removeAttribute(i):this.setAttribute(i,r),this._$Em=null}}_$AK(t,e){let s=this.constructor,i=s._$Eh.get(t);if(i!==void 0&&this._$Em!==i){let r=s.getPropertyOptions(i),n=typeof r.converter=="function"?{fromAttribute:r.converter}:r.converter?.fromAttribute!==void 0?r.converter:ot;this._$Em=i;let c=n.fromAttribute(e,r.type);this[i]=c??this._$Ej?.get(i)??c,this._$Em=null}}requestUpdate(t,e,s,i=!1,r){if(t!==void 0){let n=this.constructor;if(i===!1&&(r=this[t]),s??(s=n.getPropertyOptions(t)),!((s.hasChanged??mt)(r,e)||s.useDefault&&s.reflect&&r===this._$Ej?.get(t)&&!this.hasAttribute(n._$Eu(t,s))))return;this.C(t,e,s)}this.isUpdatePending===!1&&(this._$ES=this._$EP())}C(t,e,{useDefault:s,reflect:i,wrapped:r},n){s&&!(this._$Ej??(this._$Ej=new Map)).has(t)&&(this._$Ej.set(t,n??e??this[t]),r!==!0||n!==void 0)||(this._$AL.has(t)||(this.hasUpdated||s||(e=void 0),this._$AL.set(t,e)),i===!0&&this._$Em!==t&&(this._$Eq??(this._$Eq=new Set)).add(t))}async _$EP(){this.isUpdatePending=!0;try{await this._$ES}catch(e){Promise.reject(e)}let t=this.scheduleUpdate();return t!=null&&await t,!this.isUpdatePending}scheduleUpdate(){return this.performUpdate()}performUpdate(){if(!this.isUpdatePending)return;if(!this.hasUpdated){if(this.renderRoot??(this.renderRoot=this.createRenderRoot()),this._$Ep){for(let[i,r]of this._$Ep)this[i]=r;this._$Ep=void 0}let s=this.constructor.elementProperties;if(s.size>0)for(let[i,r]of s){let{wrapped:n}=r,c=this[i];n!==!0||this._$AL.has(i)||c===void 0||this.C(i,void 0,r,c)}}let t=!1,e=this._$AL;try{t=this.shouldUpdate(e),t?(this.willUpdate(e),this._$EO?.forEach(s=>s.hostUpdate?.()),this.update(e)):this._$EM()}catch(s){throw t=!1,this._$EM(),s}t&&this._$AE(e)}willUpdate(t){}_$AE(t){this._$EO?.forEach(e=>e.hostUpdated?.()),this.hasUpdated||(this.hasUpdated=!0,this.firstUpdated(t)),this.updated(t)}_$EM(){this._$AL=new Map,this.isUpdatePending=!1}get updateComplete(){return this.getUpdateComplete()}getUpdateComplete(){return this._$ES}shouldUpdate(t){return!0}update(t){this._$Eq&&(this._$Eq=this._$Eq.forEach(e=>this._$ET(e,this[e]))),this._$EM()}updated(t){}firstUpdated(t){}};b.elementStyles=[],b.shadowRootOptions={mode:"open"},b[U("elementProperties")]=new Map,b[U("finalized")]=new Map,Kt?.({ReactiveElement:b}),(w.reactiveElementVersions??(w.reactiveElementVersions=[])).push("2.1.2");var I=globalThis,ft=o=>o,K=I.trustedTypes,vt=K?K.createPolicy("lit-html",{createHTML:o=>o}):void 0,at="$lit$",x=`lit$${Math.random().toFixed(9).slice(2)}$`,nt="?"+x,Yt=`<${nt}>`,E=document,j=()=>E.createComment(""),D=o=>o===null||typeof o!="object"&&typeof o!="function",lt=Array.isArray,At=o=>lt(o)||typeof o?.[Symbol.iterator]=="function",rt=`[ 	
+\f\r]`,O=/<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g,bt=/-->/g,xt=/>/g,S=RegExp(`>|${rt}(?:([^\\s"'>=/]+)(${rt}*=${rt}*(?:[^ 	
+\f\r"'\`<>=]|("|')|))|$)`,"g"),yt=/'/g,$t=/"/g,St=/^(?:script|style|textarea|title)$/i,dt=o=>(t,...e)=>({_$litType$:o,strings:t,values:e}),a=dt(1),le=dt(2),de=dt(3),y=Symbol.for("lit-noChange"),l=Symbol.for("lit-nothing"),wt=new WeakMap,k=E.createTreeWalker(E,129);function kt(o,t){if(!lt(o)||!o.hasOwnProperty("raw"))throw Error("invalid template strings array");return vt!==void 0?vt.createHTML(t):t}var Et=(o,t)=>{let e=o.length-1,s=[],i,r=t===2?"<svg>":t===3?"<math>":"",n=O;for(let c=0;c<e;c++){let d=o[c],u,m,p=-1,_=0;for(;_<d.length&&(n.lastIndex=_,m=n.exec(d),m!==null);)_=n.lastIndex,n===O?m[1]==="!--"?n=bt:m[1]!==void 0?n=xt:m[2]!==void 0?(St.test(m[2])&&(i=RegExp("</"+m[2],"g")),n=S):m[3]!==void 0&&(n=S):n===S?m[0]===">"?(n=i??O,p=-1):m[1]===void 0?p=-2:(p=n.lastIndex-m[2].length,u=m[1],n=m[3]===void 0?S:m[3]==='"'?$t:yt):n===$t||n===yt?n=S:n===bt||n===xt?n=O:(n=S,i=void 0);let g=n===S&&o[c+1].startsWith("/>")?" ":"";r+=n===O?d+Yt:p>=0?(s.push(u),d.slice(0,p)+at+d.slice(p)+x+g):d+x+(p===-2?c:g)}return[kt(o,r+(o[e]||"<?>")+(t===2?"</svg>":t===3?"</math>":"")),s]},H=class o{constructor({strings:t,_$litType$:e},s){let i;this.parts=[];let r=0,n=0,c=t.length-1,d=this.parts,[u,m]=Et(t,e);if(this.el=o.createElement(u,s),k.currentNode=this.el.content,e===2||e===3){let p=this.el.content.firstChild;p.replaceWith(...p.childNodes)}for(;(i=k.nextNode())!==null&&d.length<c;){if(i.nodeType===1){if(i.hasAttributes())for(let p of i.getAttributeNames())if(p.endsWith(at)){let _=m[n++],g=i.getAttribute(p).split(x),f=/([.?@])?(.*)/.exec(_);d.push({type:1,index:r,name:f[2],strings:g,ctor:f[1]==="."?J:f[1]==="?"?G:f[1]==="@"?Z:T}),i.removeAttribute(p)}else p.startsWith(x)&&(d.push({type:6,index:r}),i.removeAttribute(p));if(St.test(i.tagName)){let p=i.textContent.split(x),_=p.length-1;if(_>0){i.textContent=K?K.emptyScript:"";for(let g=0;g<_;g++)i.append(p[g],j()),k.nextNode(),d.push({type:2,index:++r});i.append(p[_],j())}}}else if(i.nodeType===8)if(i.data===nt)d.push({type:2,index:r});else{let p=-1;for(;(p=i.data.indexOf(x,p+1))!==-1;)d.push({type:7,index:r}),p+=x.length-1}r++}}static createElement(t,e){let s=E.createElement("template");return s.innerHTML=t,s}};function C(o,t,e=o,s){if(t===y)return t;let i=s!==void 0?e._$Co?.[s]:e._$Cl,r=D(t)?void 0:t._$litDirective$;return i?.constructor!==r&&(i?._$AO?.(!1),r===void 0?i=void 0:(i=new r(o),i._$AT(o,e,s)),s!==void 0?(e._$Co??(e._$Co=[]))[s]=i:e._$Cl=i),i!==void 0&&(t=C(o,i._$AS(o,t.values),i,s)),t}var Y=class{constructor(t,e){this._$AV=[],this._$AN=void 0,this._$AD=t,this._$AM=e}get parentNode(){return this._$AM.parentNode}get _$AU(){return this._$AM._$AU}u(t){let{el:{content:e},parts:s}=this._$AD,i=(t?.creationScope??E).importNode(e,!0);k.currentNode=i;let r=k.nextNode(),n=0,c=0,d=s[0];for(;d!==void 0;){if(n===d.index){let u;d.type===2?u=new P(r,r.nextSibling,this,t):d.type===1?u=new d.ctor(r,d.name,d.strings,this,t):d.type===6&&(u=new X(r,this,t)),this._$AV.push(u),d=s[++c]}n!==d?.index&&(r=k.nextNode(),n++)}return k.currentNode=E,i}p(t){let e=0;for(let s of this._$AV)s!==void 0&&(s.strings!==void 0?(s._$AI(t,s,e),e+=s.strings.length-2):s._$AI(t[e])),e++}},P=class o{get _$AU(){return this._$AM?._$AU??this._$Cv}constructor(t,e,s,i){this.type=2,this._$AH=l,this._$AN=void 0,this._$AA=t,this._$AB=e,this._$AM=s,this.options=i,this._$Cv=i?.isConnected??!0}get parentNode(){let t=this._$AA.parentNode,e=this._$AM;return e!==void 0&&t?.nodeType===11&&(t=e.parentNode),t}get startNode(){return this._$AA}get endNode(){return this._$AB}_$AI(t,e=this){t=C(this,t,e),D(t)?t===l||t==null||t===""?(this._$AH!==l&&this._$AR(),this._$AH=l):t!==this._$AH&&t!==y&&this._(t):t._$litType$!==void 0?this.$(t):t.nodeType!==void 0?this.T(t):At(t)?this.k(t):this._(t)}O(t){return this._$AA.parentNode.insertBefore(t,this._$AB)}T(t){this._$AH!==t&&(this._$AR(),this._$AH=this.O(t))}_(t){this._$AH!==l&&D(this._$AH)?this._$AA.nextSibling.data=t:this.T(E.createTextNode(t)),this._$AH=t}$(t){let{values:e,_$litType$:s}=t,i=typeof s=="number"?this._$AC(t):(s.el===void 0&&(s.el=H.createElement(kt(s.h,s.h[0]),this.options)),s);if(this._$AH?._$AD===i)this._$AH.p(e);else{let r=new Y(i,this),n=r.u(this.options);r.p(e),this.T(n),this._$AH=r}}_$AC(t){let e=wt.get(t.strings);return e===void 0&&wt.set(t.strings,e=new H(t)),e}k(t){lt(this._$AH)||(this._$AH=[],this._$AR());let e=this._$AH,s,i=0;for(let r of t)i===e.length?e.push(s=new o(this.O(j()),this.O(j()),this,this.options)):s=e[i],s._$AI(r),i++;i<e.length&&(this._$AR(s&&s._$AB.nextSibling,i),e.length=i)}_$AR(t=this._$AA.nextSibling,e){for(this._$AP?.(!1,!0,e);t!==this._$AB;){let s=ft(t).nextSibling;ft(t).remove(),t=s}}setConnected(t){this._$AM===void 0&&(this._$Cv=t,this._$AP?.(t))}},T=class{get tagName(){return this.element.tagName}get _$AU(){return this._$AM._$AU}constructor(t,e,s,i,r){this.type=1,this._$AH=l,this._$AN=void 0,this.element=t,this.name=e,this._$AM=i,this.options=r,s.length>2||s[0]!==""||s[1]!==""?(this._$AH=Array(s.length-1).fill(new String),this.strings=s):this._$AH=l}_$AI(t,e=this,s,i){let r=this.strings,n=!1;if(r===void 0)t=C(this,t,e,0),n=!D(t)||t!==this._$AH&&t!==y,n&&(this._$AH=t);else{let c=t,d,u;for(t=r[0],d=0;d<r.length-1;d++)u=C(this,c[s+d],e,d),u===y&&(u=this._$AH[d]),n||(n=!D(u)||u!==this._$AH[d]),u===l?t=l:t!==l&&(t+=(u??"")+r[d+1]),this._$AH[d]=u}n&&!i&&this.j(t)}j(t){t===l?this.element.removeAttribute(this.name):this.element.setAttribute(this.name,t??"")}},J=class extends T{constructor(){super(...arguments),this.type=3}j(t){this.element[this.name]=t===l?void 0:t}},G=class extends T{constructor(){super(...arguments),this.type=4}j(t){this.element.toggleAttribute(this.name,!!t&&t!==l)}},Z=class extends T{constructor(t,e,s,i,r){super(t,e,s,i,r),this.type=5}_$AI(t,e=this){if((t=C(this,t,e,0)??l)===y)return;let s=this._$AH,i=t===l&&s!==l||t.capture!==s.capture||t.once!==s.once||t.passive!==s.passive,r=t!==l&&(s===l||i);i&&this.element.removeEventListener(this.name,this,s),r&&this.element.addEventListener(this.name,this,t),this._$AH=t}handleEvent(t){typeof this._$AH=="function"?this._$AH.call(this.options?.host??this.element,t):this._$AH.handleEvent(t)}},X=class{constructor(t,e,s){this.element=t,this.type=6,this._$AN=void 0,this._$AM=e,this.options=s}get _$AU(){return this._$AM._$AU}_$AI(t){C(this,t)}},Ct={M:at,P:x,A:nt,C:1,L:Et,R:Y,D:At,V:C,I:P,H:T,N:G,U:Z,B:J,F:X},Jt=I.litHtmlPolyfillSupport;Jt?.(H,P),(I.litHtmlVersions??(I.litHtmlVersions=[])).push("3.3.2");var Tt=(o,t,e)=>{let s=e?.renderBefore??t,i=s._$litPart$;if(i===void 0){let r=e?.renderBefore??null;s._$litPart$=i=new P(t.insertBefore(j(),r),r,void 0,e??{})}return i._$AI(o),i};var W=globalThis,$=class extends b{constructor(){super(...arguments),this.renderOptions={host:this},this._$Do=void 0}createRenderRoot(){var e;let t=super.createRenderRoot();return(e=this.renderOptions).renderBefore??(e.renderBefore=t.firstChild),t}update(t){let e=this.render();this.hasUpdated||(this.renderOptions.isConnected=this.isConnected),super.update(t),this._$Do=Tt(e,this.renderRoot,this.renderOptions)}connectedCallback(){super.connectedCallback(),this._$Do?.setConnected(!0)}disconnectedCallback(){super.disconnectedCallback(),this._$Do?.setConnected(!1)}render(){return y}};$._$litElement$=!0,$.finalized=!0,W.litElementHydrateSupport?.({LitElement:$});var Gt=W.litElementPolyfillSupport;Gt?.({LitElement:$});(W.litElementVersions??(W.litElementVersions=[])).push("4.2.2");var zt={ATTRIBUTE:1,CHILD:2,PROPERTY:3,BOOLEAN_ATTRIBUTE:4,EVENT:5,ELEMENT:6},Pt=o=>(...t)=>({_$litDirective$:o,values:t}),tt=class{constructor(t){}get _$AU(){return this._$AM._$AU}_$AT(t,e,s){this._$Ct=t,this._$AM=e,this._$Ci=s}_$AS(t,e){return this.update(t,e)}update(t,e){return this.render(...e)}};var{I:Zt}=Ct,Mt=o=>o;var Nt=()=>document.createComment(""),M=(o,t,e)=>{let s=o._$AA.parentNode,i=t===void 0?o._$AB:t._$AA;if(e===void 0){let r=s.insertBefore(Nt(),i),n=s.insertBefore(Nt(),i);e=new Zt(r,n,o,o.options)}else{let r=e._$AB.nextSibling,n=e._$AM,c=n!==o;if(c){let d;e._$AQ?.(o),e._$AM=o,e._$AP!==void 0&&(d=o._$AU)!==n._$AU&&e._$AP(d)}if(r!==i||c){let d=e._$AA;for(;d!==r;){let u=Mt(d).nextSibling;Mt(s).insertBefore(d,i),d=u}}}return e},A=(o,t,e=o)=>(o._$AI(t,e),o),Xt={},Rt=(o,t=Xt)=>o._$AH=t,Lt=o=>o._$AH,et=o=>{o._$AR(),o._$AA.remove()};var Ut=(o,t,e)=>{let s=new Map;for(let i=t;i<=e;i++)s.set(o[i],i);return s},z=Pt(class extends tt{constructor(o){if(super(o),o.type!==zt.CHILD)throw Error("repeat() can only be used in text expressions")}dt(o,t,e){let s;e===void 0?e=t:t!==void 0&&(s=t);let i=[],r=[],n=0;for(let c of o)i[n]=s?s(c,n):n,r[n]=e(c,n),n++;return{values:r,keys:i}}render(o,t,e){return this.dt(o,t,e).values}update(o,[t,e,s]){let i=Lt(o),{values:r,keys:n}=this.dt(t,e,s);if(!Array.isArray(i))return this.ut=n,r;let c=this.ut??(this.ut=[]),d=[],u,m,p=0,_=i.length-1,g=0,f=r.length-1;for(;p<=_&&g<=f;)if(i[p]===null)p++;else if(i[_]===null)_--;else if(c[p]===n[g])d[g]=A(i[p],r[g]),p++,g++;else if(c[_]===n[f])d[f]=A(i[_],r[f]),_--,f--;else if(c[p]===n[f])d[f]=A(i[p],r[f]),M(o,d[f+1],i[p]),p++,f--;else if(c[_]===n[g])d[g]=A(i[_],r[g]),M(o,i[p],i[_]),_--,g++;else if(u===void 0&&(u=Ut(n,g,f),m=Ut(c,p,_)),u.has(c[p]))if(u.has(c[_])){let h=m.get(n[g]),v=h!==void 0?i[h]:null;if(v===null){let N=M(o,i[p]);A(N,r[g]),d[g]=N}else d[g]=A(v,r[g]),M(o,i[p],v),i[h]=null;g++}else et(i[_]),_--;else et(i[p]),p++;for(;g<=f;){let h=M(o,d[f+1]);A(h,r[g]),d[g++]=h}for(;p<=_;){let h=i[p++];h!==null&&et(h)}return this.ut=n,Rt(o,d),y}});function te(o){return o?new Date(o+"T12:00:00").toLocaleDateString(void 0,{month:"short",day:"numeric",year:"numeric"}):""}var Ot={want_to_watch:"Queue",watching:"Watching",watched:"Watched",paused:"Watching",suggested:"Suggested",dismissed:"Not for us"},ct=["watching","queue","suggested"],ee={new:"watching",soon:"watching",upnext:"queue"},se=["Too stressful","Too slow","Feels dated","Not our genre","Already seen it","Just not interested"],It={want_to_watch:"#6d6d6d",watching:"#1976d2",watched:"#2e7d32",paused:"#1976d2",suggested:"#7b1fa2",dismissed:"#6d6d6d"},q=class extends ${constructor(){super(),this._items=[],this._detail=null,this._dismissing=null,this._toast=null,this._loaded=!1,this._unsubEvents=null,this._seasonCache={},this._modal=null,this._libraryFilter="all",this._previewLoading=!1,this._previewSeq=0,this._onKeydown=t=>{t.key==="Escape"&&this._closeTopLayer()},this._searchQuery="",this._searchType="",this._searchResults=null,this._searching=!1,this._adding=new Set,this._searchSeq=0}static getConfigElement(){return document.createElement("polr-tmdb-card-editor")}static getStubConfig(){return{title:"Watch Tonight"}}setConfig(t){let e=[...new Set((t.sections||ct).map(i=>ee[i]||i))].filter(i=>ct.includes(i));if(!e.length)throw new Error("sections must include at least one of: "+ct.join(", "));let s=(t.tvs||[]).map(i=>typeof i=="string"?{entity:i}:i);for(let i of s)if(!i.entity||!i.entity.startsWith("media_player."))throw new Error("Each entry in tvs needs a media_player entity");this._config={title:"Watch Tonight",search:!0,...t,sections:e,tvs:s}}set hass(t){this._hass=t,this._loaded||(this._loaded=!0,this._loadItems(),this._subscribeEvents())}connectedCallback(){super.connectedCallback(),window.addEventListener("keydown",this._onKeydown),this._loaded&&!this._unsubEvents&&(this._loadItems(),this._subscribeEvents())}disconnectedCallback(){super.disconnectedCallback(),window.removeEventListener("keydown",this._onKeydown),clearTimeout(this._searchTimer),this._unsubEvents&&this._unsubEvents.then(t=>t&&t()),this._unsubEvents=null}async _loadItems(){try{let t=await this._hass.connection.sendMessagePromise({type:"polr_tmdb/items"})||[];this._items=t.map(e=>this._normalize(e))}catch(t){console.error("polr-tmdb-card: load failed",t)}}async _subscribeEvents(){this._unsubEvents=this._hass.connection.subscribeEvents(t=>{this._loadItems();let e=t.data.item;!this._detail||!e||(e.item_id===this._detail.item_id?this._detail=t.data.action==="remove"?null:this._normalize(e):!this._detail.item_id&&this._sameTitle(e,this._detail)&&(this._detail=this._normalize(e)))},"polr_tmdb_updated")}_normalize(t){return t.media_type==="tv"&&t.show_ended&&["watching","paused"].includes(t.status)&&this._isCaughtUp(t)?{...t,status:"watched"}:t}async _updateItem(t,e){let s=Object.fromEntries(Object.entries(e).filter(([i,r])=>r!=null||i==="current_season"||i==="current_episode"));try{await this._hass.connection.sendMessagePromise({type:"polr_tmdb/update",item_id:t,...s})}catch(i){console.error("polr-tmdb-card: update failed",i)}}async _callService(t,e,s){try{await this._hass.callService("polr_tmdb",t,e),s&&this._showToast(s)}catch(i){console.error(`polr-tmdb-card: ${t} failed`,i),this._showToast(i?.message||"Something went wrong")}}_showToast(t){this._toast=t,clearTimeout(this._toastTimer),this._toastTimer=setTimeout(()=>this._toast=null,3500)}_tvName(t){return t.name||this._hass?.states?.[t.entity]?.attributes?.friendly_name||t.entity}_openOnTv(t,e){this._showToast(`Opening ${t.title} on ${this._tvName(e)}\u2026`),this._callService("open_on_tv",{item_id:t.item_id,entity_id:e.entity})}_addSuggestion(t){this._callService("update_status",{item_id:t.item_id,status:"want_to_watch"},`Added ${t.title} to your Queue`),this._detail?.item_id===t.item_id&&(this._detail={...t,status:"want_to_watch"})}_dismiss(t,e){this._dismissing=null,this._callService("dismiss",{item_id:t.item_id,reason:e||""},`Passed on ${t.title}`),this._detail?.item_id===t.item_id&&(this._detail=null)}async _removeItem(t){if(confirm("Remove from watchlist?"))try{await this._hass.connection.sendMessagePromise({type:"polr_tmdb/remove",item_id:t})}catch(e){console.error("polr-tmdb-card: remove failed",e)}}async _fetchSeasonEpisodes(t,e){let s=`${t}:${e}`;if(!this._seasonCache[s])try{let i=await this._hass.connection.sendMessagePromise({type:"polr_tmdb/season",tmdb_id:t,season_number:e});this._seasonCache[s]=i||[],this.requestUpdate()}catch(i){console.error("season fetch",i)}}_getSeasonEpisodes(t,e){if(!e)return[];let s=`${t}:${e}`;return this._seasonCache[s]?this._seasonCache[s]:(this._fetchSeasonEpisodes(t,e),null)}_openModal(t){this._modal=t,t==="search"&&this.updateComplete.then(()=>this.renderRoot.querySelector(".search-input")?.focus())}_closeModal(){this._modal=null,this._dismissing=null}_closeDetail(){this._detail=null,this._editingProgress=null,this._dismissing=null,this._previewSeq++,this._previewLoading=!1}_closeTopLayer(){this._detail?this._closeDetail():this._modal&&this._closeModal()}_sameTitle(t,e){return t.tmdb_id===e.tmdb_id&&t.media_type===e.media_type}_onSearchInput(t){this._searchQuery=t,clearTimeout(this._searchTimer),this._searchTimer=setTimeout(()=>this._runSearch(),400)}_setSearchType(t){this._searchType=t,this._runSearch()}async _runSearch(){clearTimeout(this._searchTimer);let t=this._searchQuery.trim(),e=++this._searchSeq;if(!t){this._searchResults=null,this._searching=!1;return}this._searching=!0;let s={query:t,limit:20};this._searchType&&(s.media_type=this._searchType);try{let i=await this._hass.connection.sendMessagePromise({type:"call_service",domain:"polr_tmdb",service:"search",service_data:s,return_response:!0});e===this._searchSeq&&(this._searchResults=i?.response?.results||[])}catch(i){console.error("polr-tmdb-card: search failed",i),e===this._searchSeq&&(this._searchResults=[],this._showToast(i?.message||"Search failed"))}finally{e===this._searchSeq&&(this._searching=!1)}}_itemForResult(t){return this._items.find(e=>this._sameTitle(e,t))}_openResult(t){let e=this._itemForResult(t);if(e){this._detail=e;return}this._openPreview(t)}async _openPreview(t){let e=++this._previewSeq;this._detail={item_id:null,status:null,tmdb_id:t.tmdb_id,media_type:t.media_type,title:t.title,poster_path:t.poster_url,backdrop_path:t.backdrop_url,overview:t.overview,vote_average:t.rating,release_date:t.year||""},this._previewLoading=!0;try{let s=await this._hass.connection.sendMessagePromise({type:"polr_tmdb/preview",tmdb_id:t.tmdb_id,media_type:t.media_type});e===this._previewSeq&&!this._detail?.item_id&&(this._detail=s)}catch(s){console.error("polr-tmdb-card: preview failed",s)}finally{e===this._previewSeq&&(this._previewLoading=!1)}}async _addTitle(t,e="want_to_watch"){let s=`${t.media_type}:${t.tmdb_id}`;this._adding=new Set([...this._adding,s]);try{let i=await this._hass.connection.sendMessagePromise({type:"polr_tmdb/add",tmdb_id:t.tmdb_id,media_type:t.media_type,status:e});await this._loadItems(),this._showToast(`Added ${t.title} to ${e==="watching"?"Watching":"your Queue"}`),this._detail&&!this._detail.item_id&&this._sameTitle(this._detail,t)&&(this._detail=i)}catch(i){console.error("polr-tmdb-card: add failed",i),this._showToast(i?.message||"Couldn't add that title")}finally{let i=new Set(this._adding);i.delete(s),this._adding=i}}_isAdding(t){return this._adding.has(`${t.media_type}:${t.tmdb_id}`)}_libraryItems(t){return[...t==="all"?this._items.filter(s=>s.status!=="dismissed"):t==="watching"?this._items.filter(s=>this._isWatching(s)):this._items.filter(s=>s.status===t)].sort((s,i)=>s.title.localeCompare(i.title))}_today(){let t=new Date;return`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`}_isWatching(t){return t.status==="watching"||t.status==="paused"}_isWaiting(t){return t.media_type==="tv"&&this._isWatching(t)&&this._isCaughtUp(t)&&!t.show_ended}_returnLabel(t){let e=t.next_episode_to_air?.air_date;if(!e)return"On break";let s=this._daysUntil(e);return s!==null&&s<=1?"Returns tomorrow":`Returns ${this._whenLabel(e)}`}_hasNewEpisode(t){if(!this._isWatching(t))return!1;if(t.has_new_episode)return!0;let e=t.next_episode_to_air;if(!e?.air_date||e.air_date>this._today())return!1;let s=t.current_season||0,i=t.current_episode||0;return s===0&&i===0?!0:e.season_number>s||e.season_number===s&&e.episode_number>i}_daysUntil(t){if(!t)return null;let e=new Date(t+"T12:00:00")-new Date;return Math.ceil(e/864e5)}get _watchingItems(){let t=s=>this._hasNewEpisode(s)?0:1,e=s=>s.next_episode_to_air?.air_date||"9999";return this._items.filter(s=>this._isWatching(s)).sort((s,i)=>t(s)-t(i)||(t(s)===1?e(s).localeCompare(e(i)):0)||s.title.localeCompare(i.title))}get _queueItems(){return this._items.filter(t=>t.status==="want_to_watch").sort((t,e)=>t.title.localeCompare(e.title))}get _suggestedItems(){return this._items.filter(t=>t.status==="suggested").sort((t,e)=>(e.suggestion?.suggested_at||"").localeCompare(t.suggestion?.suggested_at||""))}render(){if(!this._config)return l;let t=c=>this._config.sections.includes(c),e=t("watching")?this._watchingItems:[],s=t("queue")?this._queueItems:[],i=t("suggested")?this._suggestedItems:[],r=t("suggested")&&(this._config.default_section==="suggested"||!(t("watching")||t("queue"))),n=t("watching")&&t("queue");return a`
       <ha-card>
         <div class="card-header">
           <span class="card-title">${this._config.title}</span>
           <div class="header-actions">
-            ${t("suggested")&&!n?a`
+            ${t("suggested")&&!r?a`
               <button class="icon-btn icon-btn-badged" title="Suggestions" aria-label="Suggestions" @click=${()=>this._openModal("suggested")}>
                 <ha-icon icon="mdi:lightbulb-on-outline"></ha-icon>
-                ${r.length?a`<span class="icon-badge">${r.length}</span>`:d}
-              </button>`:d}
+                ${i.length?a`<span class="icon-badge">${i.length}</span>`:l}
+              </button>`:l}
             ${this._config.search?a`
               <button class="icon-btn" title="Search" aria-label="Search" @click=${()=>this._openModal("search")}>
                 <ha-icon icon="mdi:magnify"></ha-icon>
-              </button>`:d}
+              </button>`:l}
             <button class="icon-btn" title="Library" aria-label="Library" @click=${()=>this._openModal("library")}>
               <ha-icon icon="mdi:bookshelf"></ha-icon>
             </button>
           </div>
         </div>
 
-        ${n&&r.length?a`
-          <div class="suggestion-list">${A(r,l=>l.item_id,l=>this._renderSuggestion(l))}</div>`:d}
+        ${r&&i.length?a`
+          <div class="suggestion-list">${z(i,c=>c.item_id,c=>this._renderSuggestion(c))}</div>`:l}
 
-        ${e.length?a`
-          ${s.length||i.length?a`<div class="group-label">New episodes</div>`:d}
-          <div class="poster-row">${A(e,l=>l.item_id,l=>this._renderPoster(l))}</div>`:d}
+        ${t("watching")?a`
+          ${n?a`<div class="group-label">Watching</div>`:l}
+          ${e.length?a`<div class="poster-row">${z(e,c=>c.item_id,c=>this._renderPoster(c))}</div>`:n&&s.length?a`<div class="group-note">Nothing in progress. Start something from your queue.</div>`:l}`:l}
 
-        ${s.length?a`
-          ${e.length||i.length?a`<div class="group-label">Up Next</div>`:d}
-          <div class="poster-row">${A(s,l=>l.item_id,l=>this._renderPoster(l))}</div>`:d}
+        ${t("queue")&&s.length?a`
+          ${n?a`<div class="group-label">Queue</div>`:l}
+          <div class="poster-row">${z(s,c=>c.item_id,c=>this._renderPoster(c))}</div>`:l}
 
-        ${i.length?a`
-          <div class="group-label">Coming up</div>
-          <div class="soon-list">
-            ${A(i,l=>l.item_id,l=>a`
-              <button class="soon-row" @click=${()=>this._detail=l}>
-                <span class="soon-title">${l.title}</span>
-                <span class="soon-when">${this._epLabelShort(l.next_episode_to_air)} · ${this._whenLabel(l.next_episode_to_air?.air_date)}</span>
-              </button>`)}
-          </div>`:d}
+        ${!e.length&&!s.length&&!(r&&i.length)?this._renderEmpty():l}
 
-        ${c?this._renderEmpty():d}
-
-        ${this._toast?a`<div class="toast">${this._toast}</div>`:d}
+        ${this._toast?a`<div class="toast">${this._toast}</div>`:l}
       </ha-card>
 
-      ${this._modal==="search"?this._renderSearchModal():d}
-      ${this._modal==="library"?this._renderLibraryModal():d}
-      ${this._modal==="suggested"?this._renderSuggestionsModal():d}
-      ${this._detail?this._renderDetailDialog():d}
-    `}_epLabelShort(t){return t?`S${t.season_number}E${t.episode_number}`:""}_whenLabel(t){let e=this._daysUntil(t);if(e===null)return"";if(e<=1)return"Tomorrow";let s=new Date(t+"T12:00:00");return e<7?s.toLocaleDateString(void 0,{weekday:"long"}):s.toLocaleDateString(void 0,{month:"short",day:"numeric"})}_renderSuggestionsModal(){let t=this._suggestedItems,e=t.length===0?a`<div class="modal-note">No suggestions right now. New ones arrive with the next weekly pass.</div>`:a`<div class="suggestion-list suggestion-list-modal">${A(t,s=>s.item_id,s=>this._renderSuggestion(s))}</div>`;return this._renderModal("Suggestions",e)}_renderSegmented(t,e,s){return a`
+      ${this._modal==="search"?this._renderSearchModal():l}
+      ${this._modal==="library"?this._renderLibraryModal():l}
+      ${this._modal==="suggested"?this._renderSuggestionsModal():l}
+      ${this._detail?this._renderDetailDialog():l}
+    `}_whenLabel(t){let e=new Date(t+"T12:00:00");return this._daysUntil(t)<7?e.toLocaleDateString(void 0,{weekday:"long"}):e.toLocaleDateString(void 0,{month:"short",day:"numeric"})}_renderSuggestionsModal(){let t=this._suggestedItems,e=t.length===0?a`<div class="modal-note">No suggestions right now. New ones arrive with the next weekly pass.</div>`:a`<div class="suggestion-list suggestion-list-modal">${z(t,s=>s.item_id,s=>this._renderSuggestion(s))}</div>`;return this._renderModal("Suggestions",e)}_renderSegmented(t,e,s){return a`
       <div class="segmented" role="tablist">
         ${t.map(i=>a`
           <button class="segment ${i.id===e?"segment-selected":""}" role="tab"
@@ -58,11 +48,11 @@ var jt=Object.defineProperty;var It=(o,t,e)=>t in o?jt(o,t,{enumerable:!0,config
             style=${i.id===e&&i.color?`--segment-color:${i.color}`:""}
             @click=${()=>s(i.id)}>
             <span class="segment-label">${i.label}</span>
-            ${i.count?a`<span class="segment-count">${i.count}</span>`:d}
+            ${i.count?a`<span class="segment-count">${i.count}</span>`:l}
           </button>
         `)}
       </div>
-    `}_renderModal(t,e,s=d){return a`
+    `}_renderModal(t,e,s=l){return a`
       <div class="modal-overlay" @click=${i=>i.target===i.currentTarget&&this._closeModal()}>
         <div class="modal" role="dialog" aria-label="${t}">
           <div class="modal-header">
@@ -71,7 +61,7 @@ var jt=Object.defineProperty;var It=(o,t,e)=>t in o?jt(o,t,{enumerable:!0,config
           </div>
           ${s}
           <div class="modal-body">${e}</div>
-          ${this._toast&&!this._detail?a`<div class="toast">${this._toast}</div>`:d}
+          ${this._toast&&!this._detail?a`<div class="toast">${this._toast}</div>`:l}
         </div>
       </div>
     `}_renderSearchModal(){let t=[["","All"],["tv","TV"],["movie","Movies"]],e=this._searchResults,s=a`
@@ -82,56 +72,52 @@ var jt=Object.defineProperty;var It=(o,t,e)=>t in o?jt(o,t,{enumerable:!0,config
           @keydown=${r=>r.key==="Enter"&&this._runSearch()} />
         ${this._renderSegmented(t.map(([r,n])=>({id:r,label:n})),this._searchType,r=>this._setSearchType(r))}
       </div>
-    `,i=this._searching&&!e?.length?a`<div class="modal-note">Searching…</div>`:e===null?a`<div class="modal-note">Find a movie or show. Tap it for details, or + to add it to Up Next.</div>`:e.length===0?a`<div class="modal-note">No matches for “${this._searchQuery.trim()}”.</div>`:a`<div class="modal-grid">${A(e,r=>`${r.media_type}:${r.tmdb_id}`,r=>this._renderSearchTile(r))}</div>`;return this._renderModal("Search",i,s)}_renderSearchTile(t){let e=this._itemForResult(t),s=this._isAdding(t),i=[t.year,t.media_type==="tv"?"TV":"Movie"].filter(Boolean).join(" \xB7 ");return a`
+    `,i=this._searching&&!e?.length?a`<div class="modal-note">Searching…</div>`:e===null?a`<div class="modal-note">Find a movie or show. Tap it for details, or + to add it to your Queue.</div>`:e.length===0?a`<div class="modal-note">No matches for “${this._searchQuery.trim()}”.</div>`:a`<div class="modal-grid">${z(e,r=>`${r.media_type}:${r.tmdb_id}`,r=>this._renderSearchTile(r))}</div>`;return this._renderModal("Search",i,s)}_renderSearchTile(t){let e=this._itemForResult(t),s=this._isAdding(t),i=[t.year,t.media_type==="tv"?"TV":"Movie"].filter(Boolean).join(" \xB7 ");return a`
       <div class="poster" @click=${()=>this._openResult(t)}>
         ${t.poster_url?a`<img class="poster-img" src="${t.poster_url}" alt="${t.title}" loading="lazy" />`:a`<div class="poster-fallback">${t.media_type==="tv"?"\u{1F4FA}":"\u{1F3AC}"}</div>`}
-        ${e?a`<span class="status-badge" style="background:${Ot[e.status]||"#6d6d6d"}">${Dt[e.status]||e.status}</span>`:a`<button class="quick-add" title="Add to Up Next" ?disabled=${s}
+        ${e?a`<span class="status-badge" style="background:${It[e.status]||"#6d6d6d"}">${Ot[e.status]||e.status}</span>`:a`<button class="quick-add" title="Add to Queue" ?disabled=${s}
               @click=${r=>{r.stopPropagation(),this._addTitle(t)}}>
               <ha-icon icon="${s?"mdi:loading":"mdi:plus"}"></ha-icon>
             </button>`}
         <div class="poster-title">${t.title}</div>
         <div class="poster-sub">${i}</div>
       </div>
-    `}_renderLibraryModal(){let t=[["all","All"],["watching","Watching"],["waiting","Waiting"],["want_to_watch","Up Next"],["suggested","Suggested"],["watched","Watched"],["dismissed","Not for us"]],e=this._libraryItems(this._libraryFilter),s=a`
+    `}_renderLibraryModal(){let t=[["all","All"],["watching","Watching"],["want_to_watch","Queue"],["suggested","Suggested"],["watched","Watched"],["dismissed","Not for us"]],e=this._libraryItems(this._libraryFilter),s=a`
       <div class="modal-toolbar">
         <div class="chip-row">
           ${t.map(([r,n])=>{let c=this._libraryItems(r).length;return a`
               <button class="chip ${this._libraryFilter===r?"chip-selected":""}"
                 @click=${()=>this._libraryFilter=r}>
-                ${this._libraryFilter===r?a`<ha-icon icon="mdi:check"></ha-icon>`:d}
-                ${n}${c>0?a`<span class="chip-count">${c}</span>`:d}
+                ${this._libraryFilter===r?a`<ha-icon icon="mdi:check"></ha-icon>`:l}
+                ${n}${c>0?a`<span class="chip-count">${c}</span>`:l}
               </button>`})}
         </div>
       </div>
     `,i=e.length===0?a`<div class="modal-note">
           ${this._libraryFilter==="all"?"Your list is empty.":"Nothing here."}
           ${this._config.search?a`<button class="action" @click=${()=>this._openModal("search")}>
-            <ha-icon icon="mdi:magnify"></ha-icon> Find something</button>`:d}
-        </div>`:a`<div class="modal-grid">${A(e,r=>r.item_id,r=>this._renderPoster(r,!0))}</div>`;return this._renderModal("Library",i,s)}_renderEmpty(){return a`
+            <ha-icon icon="mdi:magnify"></ha-icon> Find something</button>`:l}
+        </div>`:a`<div class="modal-grid">${z(e,r=>r.item_id,r=>this._renderPoster(r,!0))}</div>`;return this._renderModal("Library",i,s)}_renderEmpty(){return a`
       <div class="empty-state">
-        <ha-icon class="empty-icon" icon="mdi:check-circle-outline"></ha-icon>
-        <div class="empty-heading">All caught up!</div>
-        <div class="empty-sub">Nothing new to watch and nothing in your queue.</div>
+        <ha-icon class="empty-icon" icon="mdi:playlist-play"></ha-icon>
+        <div class="empty-heading">Nothing here yet</div>
+        <div class="empty-sub">Add a show or movie to start your queue.</div>
         ${this._config.search?a`
           <button class="action" @click=${()=>this._openModal("search")}>
             <ha-icon icon="mdi:magnify"></ha-icon> Find something
-          </button>`:d}
+          </button>`:l}
       </div>
-    `}_renderTitleArt(t,e=""){return t.logo_path?a`<img class="title-logo ${e}" src="${t.logo_path}" alt="${t.title}" loading="lazy" />`:a`<div class="title-text ${e}">${t.title}</div>`}_epLabel(t){return t?`S${t.season_number} \xB7 E${t.episode_number}${t.name?` \xB7 ${t.name}`:""}`:""}_renderPoster(t,e=!1){let s=t.next_episode_to_air,i=this._isComingSoon(t)&&s?.air_date?this._daysUntil(s.air_date):null;return a`
+    `}_renderTitleArt(t,e=""){return t.logo_path?a`<img class="title-logo ${e}" src="${t.logo_path}" alt="${t.title}" loading="lazy" />`:a`<div class="title-text ${e}">${t.title}</div>`}_epLabel(t){return t?`S${t.season_number} \xB7 E${t.episode_number}${t.name?` \xB7 ${t.name}`:""}`:""}_posterSub(t){return this._isWaiting(t)?this._returnLabel(t):t.status==="want_to_watch"&&t.current_season?`Stopped at S${t.current_season}E${t.current_episode||1}`:null}_renderPoster(t,e=!1){let s=this._posterSub(t);return a`
       <div class="poster" @click=${()=>this._detail=t}>
         ${t.poster_path?a`<img class="poster-img" src="${t.poster_path}" alt="${t.title}" loading="lazy" />`:a`<div class="poster-fallback">${t.media_type==="tv"?"\u{1F4FA}":"\u{1F3AC}"}</div>`}
 
-        ${this._hasNewEpisode(t)?a`<span class="new-badge">NEW</span>`:d}
+        ${this._hasNewEpisode(t)?a`<span class="new-badge">NEW</span>`:l}
         ${e&&this._libraryFilter==="all"?a`
-          ${this._isWaiting(t)?a`<span class="status-badge" style="background:#546e7a">Waiting</span>`:a`<span class="status-badge" style="background:${Ot[t.status]||"#6d6d6d"}">${Dt[t.status]||t.status}</span>`}
-        `:d}
-
-        ${i!==null?a`
-          <span class="soon-badge">${i===1?"Tomorrow":`${i}d`}</span>
-        `:d}
+          <span class="status-badge" style="background:${It[t.status]||"#6d6d6d"}">${Ot[t.status]||t.status}</span>
+        `:l}
 
         <div class="poster-title">${t.title}</div>
-        ${e&&this._isWaiting(t)?a`<div class="poster-sub">${this._returnLabel(t)}</div>`:d}
+        ${s?a`<div class="poster-sub">${s}</div>`:l}
       </div>
     `}_streamingNames(t){return(t.watch_providers?.flatrate||[]).map(e=>e.provider_name)}_renderSuggestion(t){let e=[t.release_date?.slice(0,4),t.media_type==="tv"&&t.seasons?`${t.seasons} season${t.seasons===1?"":"s"}`:null,t.watch_link?.service||this._streamingNames(t)[0]].filter(Boolean).join(" \xB7 ");return a`
       <div class="suggestion">
@@ -144,7 +130,7 @@ var jt=Object.defineProperty;var It=(o,t,e)=>t in o?jt(o,t,{enumerable:!0,config
           </div>
         </div>
         <div class="suggestion-body">
-          ${t.suggestion?.reason?a`<div class="suggestion-reason">${t.suggestion.reason}</div>`:d}
+          ${t.suggestion?.reason?a`<div class="suggestion-reason">${t.suggestion.reason}</div>`:l}
           ${this._dismissing===t.item_id?this._renderDismissChooser(t):a`
               <div class="suggestion-actions">
                 <button class="action action-primary" @click=${()=>this._addSuggestion(t)}>
@@ -156,12 +142,12 @@ var jt=Object.defineProperty;var It=(o,t,e)=>t in o?jt(o,t,{enumerable:!0,config
                 ${t.trailer_url?a`
                   <a class="action" href="${t.trailer_url}" target="_blank" rel="noopener">
                     <ha-icon icon="mdi:play-circle-outline"></ha-icon> Trailer
-                  </a>`:d}
+                  </a>`:l}
               </div>
               ${this._renderTvButtons(t)}`}
         </div>
       </div>
-    `}_renderTvButtons(t){return!t.watch_link?.url||!this._config.tvs.length?d:a`
+    `}_renderTvButtons(t){return!t.watch_link?.url||!this._config.tvs.length?l:a`
       <div class="tv-row">
         <span class="tv-label">Open on</span>
         ${this._config.tvs.map(e=>a`
@@ -174,7 +160,7 @@ var jt=Object.defineProperty;var It=(o,t,e)=>t in o?jt(o,t,{enumerable:!0,config
       <div class="dismiss-chooser">
         <div class="dismiss-prompt">What's the reason?</div>
         <div class="dismiss-reasons">
-          ${ee.map(e=>a`<button class="chip" @click=${()=>this._dismiss(t,e)}>${e}</button>`)}
+          ${se.map(e=>a`<button class="chip" @click=${()=>this._dismiss(t,e)}>${e}</button>`)}
         </div>
         <div class="dismiss-custom">
           <input class="dismiss-input" type="text" maxlength="200" placeholder="Or say why…"
@@ -182,39 +168,46 @@ var jt=Object.defineProperty;var It=(o,t,e)=>t in o?jt(o,t,{enumerable:!0,config
           <button class="action" @click=${()=>this._dismissing=null}>Cancel</button>
         </div>
       </div>
-    `}_isCaughtUp(t){let e=t.last_episode_to_air;if(!e)return!1;let s=t.current_season||0,i=t.current_episode||0;return s>0&&(s>e.season_number||s===e.season_number&&i>=e.episode_number)}_progressFields(t,e,s){let i=t.last_episode_to_air,r=t.show_ended&&i&&(e>i.season_number||e===i.season_number&&s>=i.episode_number);return{current_season:e,current_episode:s,status:r?"watched":"watching"}}async _setProgress(t,e,s){let i=this._progressFields(t,e,s);await this._updateItem(t.item_id,i),this._detail={...t,...i}}_nextToWatch(t){if(!t.last_episode_to_air||this._isCaughtUp(t))return null;let s=t.current_season||0,i=t.current_episode||0;if(!s)return{season:1,episode:1};let r=this._getSeasonEpisodes(t.tmdb_id,s);if(r===null)return;let n=this._today(),c=r.find(l=>l.episode_number===i+1&&(!l.air_date||l.air_date<=n));return c?{season:s,episode:i+1,name:c.name}:{season:s+1,episode:1}}_renderProgress(t){let e=t.current_season||0,s=t.current_episode||0,i=e?this._getSeasonEpisodes(t.tmdb_id,e):[],r=Array.isArray(i)?i.find(h=>h.episode_number===s):null,n=this._isCaughtUp(t),c=this._nextToWatch(t),l=this._editingProgress===t.item_id,u;t.status==="watched"?u="Finished":e?u=`You're at S${e} \xB7 E${s}${r?.name?` \xB7 ${r.name}`:""}`:u="Not started";let m=t.status==="watched"?null:this._hasNewEpisode(t)&&e?"New episode":n?this._isWaiting(t)?`Caught up \xB7 ${this._returnLabel(t)}`:"Caught up":null,p=this._today(),_=Array.isArray(i)?i.filter(h=>!h.air_date||h.air_date<=p):[],g=t.seasons||0;return a`
+    `}_isCaughtUp(t){let e=t.last_episode_to_air;if(!e)return!1;let s=t.current_season||0,i=t.current_episode||0;return s>0&&(s>e.season_number||s===e.season_number&&i>=e.episode_number)}_progressFields(t,e,s){let i=t.last_episode_to_air,r=t.show_ended&&i&&(e>i.season_number||e===i.season_number&&s>=i.episode_number);return{current_season:e,current_episode:s,status:r?"watched":"watching"}}async _setProgress(t,e,s){let i=this._progressFields(t,e,s);await this._updateItem(t.item_id,i),this._detail={...t,...i}}_nextToWatch(t){if(!t.last_episode_to_air||this._isCaughtUp(t))return null;let s=t.current_season||0,i=t.current_episode||0;if(!s)return{season:1,episode:1};let r=this._getSeasonEpisodes(t.tmdb_id,s);if(r===null)return;let n=this._today(),c=r.find(d=>d.episode_number===i+1&&(!d.air_date||d.air_date<=n));return c?{season:s,episode:i+1,name:c.name}:{season:s+1,episode:1}}_renderProgress(t){let e=t.current_season||0,s=t.current_episode||0,i=e?this._getSeasonEpisodes(t.tmdb_id,e):[],r=Array.isArray(i)?i.find(h=>h.episode_number===s):null,n=this._isCaughtUp(t),c=this._nextToWatch(t),d=this._editingProgress===t.item_id,u,m=t.status==="want_to_watch";t.status==="watched"?u="Finished":e?u=`${m?"Stopped at":"You're at"} S${e} \xB7 E${s}${r?.name?` \xB7 ${r.name}`:""}`:u="Not started";let p=t.status==="watched"||m?null:this._hasNewEpisode(t)&&e?"New episode":n?this._isWaiting(t)?`Caught up \xB7 ${this._returnLabel(t)}`:"Caught up":null,_=this._today(),g=Array.isArray(i)?i.filter(h=>!h.air_date||h.air_date<=_):[],f=t.seasons||0;return a`
       <div class="section-label">Where you are</div>
       <div class="progress-line">
         <span>${u}</span>
-        ${m?a`<span class="progress-pill ${m.startsWith("Caught up")?"pill-ok":"pill-new"}">${m}</span>`:d}
+        ${p?a`<span class="progress-pill ${p.startsWith("Caught up")?"pill-ok":"pill-new"}">${p}</span>`:l}
       </div>
 
       <div class="preview-actions">
         ${t.status==="watched"?a`
           <button class="action action-primary" @click=${async()=>{let h={status:"want_to_watch",current_season:null,current_episode:null};await this._updateItem(t.item_id,h),this._detail={...t,...h}}}><ha-icon icon="mdi:replay"></ha-icon> Watch again</button>
+        `:m?a`
+          <button class="action action-primary" @click=${async()=>{await this._updateItem(t.item_id,{status:"watching"}),this._detail={...t,status:"watching"}}}><ha-icon icon="mdi:play-circle-outline"></ha-icon> ${e?"Resume watching":"Start watching"}</button>
+          ${!n&&t.last_episode_to_air?a`
+            <button class="action" @click=${()=>this._setProgress(t,t.last_episode_to_air.season_number,t.last_episode_to_air.episode_number)}>
+              <ha-icon icon="mdi:check-all"></ha-icon> Already seen it all
+            </button>`:l}
         `:a`
           ${c!==null?a`
             <button class="action action-primary" ?disabled=${c===void 0}
               @click=${()=>this._setProgress(t,c.season,c.episode)}>
               <ha-icon icon="mdi:check"></ha-icon> Watched S${c?.season??e}E${c?.episode??s+1}
-            </button>`:d}
+            </button>`:l}
           ${!n&&t.last_episode_to_air?a`
             <button class="action" @click=${()=>this._setProgress(t,t.last_episode_to_air.season_number,t.last_episode_to_air.episode_number)}>
               <ha-icon icon="mdi:check-all"></ha-icon> All caught up
-            </button>`:d}
+            </button>`:l}
+          <button class="link-btn" @click=${async()=>{await this._updateItem(t.item_id,{status:"want_to_watch"}),this._detail={...t,status:"want_to_watch"}}}>Move to queue</button>
         `}
-        <button class="link-btn" @click=${()=>this._editingProgress=l?null:t.item_id}>
-          ${l?"Done":"Change\u2026"}
+        <button class="link-btn" @click=${()=>this._editingProgress=d?null:t.item_id}>
+          ${d?"Done":"Change\u2026"}
         </button>
       </div>
 
-      ${l?a`
+      ${d?a`
         <div class="progress-row">
           <label class="select-label">
             <span>Season</span>
-            <select class="ep-select" @change=${h=>{let f=parseInt(h.target.value)||null,z={current_season:f,current_episode:null,status:f?"watching":"want_to_watch"};this._updateItem(t.item_id,z),this._detail={...t,...z}}}>
+            <select class="ep-select" @change=${h=>{let v=parseInt(h.target.value)||null,N={current_season:v,current_episode:null,status:v?"watching":"want_to_watch"};this._updateItem(t.item_id,N),this._detail={...t,...N}}}>
               <option value="">—</option>
-              ${Array.from({length:g},(h,f)=>f+1).map(h=>a`
+              ${Array.from({length:f},(h,v)=>v+1).map(h=>a`
                 <option value="${h}" ?selected=${e===h}>Season ${h}</option>
               `)}
             </select>
@@ -222,9 +215,9 @@ var jt=Object.defineProperty;var It=(o,t,e)=>t in o?jt(o,t,{enumerable:!0,config
           <label class="select-label">
             <span>Episode</span>
             <select class="ep-select" ?disabled=${!e||i===null}
-              @change=${h=>{let f=h.target.value?parseInt(h.target.value,10):null;f&&this._setProgress(t,e,f)}}>
+              @change=${h=>{let v=h.target.value?parseInt(h.target.value,10):null;v&&this._setProgress(t,e,v)}}>
               <option value="">—</option>
-              ${i===null?a`<option disabled>Loading…</option>`:_.map(h=>a`
+              ${i===null?a`<option disabled>Loading…</option>`:g.map(h=>a`
                     <option value="${h.episode_number}" ?selected=${s===h.episode_number}>
                       E${h.episode_number}${h.name?` \xB7 ${h.name}`:""}
                     </option>
@@ -232,7 +225,7 @@ var jt=Object.defineProperty;var It=(o,t,e)=>t in o?jt(o,t,{enumerable:!0,config
             </select>
           </label>
         </div>
-      `:d}
+      `:l}
     `}_renderMovieStatus(t){let e=t.status==="watched",s=e?"want_to_watch":"watched";return a`
       <div class="preview-actions">
         <button class="action action-primary" @click=${async()=>{await this._updateItem(t.item_id,{status:s}),this._detail={...t,status:s}}}>
@@ -241,7 +234,7 @@ var jt=Object.defineProperty;var It=(o,t,e)=>t in o?jt(o,t,{enumerable:!0,config
       </div>
     `}_renderItemControls(t){let e=!["suggested","dismissed"].includes(t.status);return a`
       ${this._renderTvButtons(t)}
-      ${e?t.media_type==="tv"?this._renderProgress(t):this._renderMovieStatus(t):d}
+      ${e?t.media_type==="tv"?this._renderProgress(t):this._renderMovieStatus(t):l}
 
       ${t.status==="watched"?a`
         <div class="section-label">Your Rating</div>
@@ -250,36 +243,36 @@ var jt=Object.defineProperty;var It=(o,t,e)=>t in o?jt(o,t,{enumerable:!0,config
             <span class="star ${(t.rating||0)>=s?"star-on":""}"
               @click=${async()=>{await this._updateItem(t.item_id,{rating:s}),this._detail={...t,rating:s}}}>★</span>
           `)}
-          ${t.rating?a`<span class="rating-num">${t.rating}/10</span>`:d}
+          ${t.rating?a`<span class="rating-num">${t.rating}/10</span>`:l}
         </div>
-      `:d}
+      `:l}
     `}_renderPreviewActions(t){let e=this._isAdding(t);return a`
       <div class="preview-actions">
         <button class="action action-primary" ?disabled=${e} @click=${()=>this._addTitle(t,"want_to_watch")}>
-          <ha-icon icon="${e?"mdi:loading":"mdi:playlist-plus"}"></ha-icon> Add to Up Next
+          <ha-icon icon="${e?"mdi:loading":"mdi:playlist-plus"}"></ha-icon> Add to Queue
         </button>
       </div>
-      ${this._previewLoading?a`<div class="preview-loading">Loading details…</div>`:d}
+      ${this._previewLoading?a`<div class="preview-loading">Loading details…</div>`:l}
     `}_metaLine(t){let e=Math.floor((t.runtime||0)/60),s=(t.runtime||0)%60,i=t.media_type==="tv"?t.seasons?`${t.seasons} season${t.seasons===1?"":"s"}`:null:t.runtime?e?`${e}h ${s}m`:`${s}m`:null;return[t.release_date?.slice(0,4),i,t.genres?.slice(0,2).join(", "),t.vote_average?`\u2605 ${Number(t.vote_average).toFixed(1)}`:null,t.networks?.[0]].filter(Boolean).join(" \xB7 ")}_renderEpisodeCards(t){let e=[["Next episode",t.next_episode_to_air]].filter(([,s])=>s?.episode_number);return e.length?a`
       <div class="episode-cards">
         ${e.map(([s,i])=>a`
           <div class="episode-card">
             ${i.still_path?a`<img class="episode-still" src="${i.still_path}" alt="" loading="lazy" />`:a`<div class="episode-still episode-still-empty"><ha-icon icon="mdi:television-classic"></ha-icon></div>`}
             <div class="episode-info">
-              <div class="episode-label">${s}${i.air_date?a` · ${te(i.air_date)}`:d}</div>
+              <div class="episode-label">${s}${i.air_date?a` · ${te(i.air_date)}`:l}</div>
               <div class="episode-name">${this._epLabel(i)}</div>
             </div>
           </div>
         `)}
       </div>
-    `:d}_renderCast(t){return a`
+    `:l}_renderCast(t){return a`
       <div class="section-label">Cast</div>
       <div class="cast-row">
         ${t.cast.map(e=>a`
           <div class="cast-member">
             ${e.profile_path?a`<img class="cast-photo" src="${e.profile_path}" alt="${e.name}" loading="lazy" />`:a`<div class="cast-photo cast-photo-empty"><ha-icon icon="mdi:account"></ha-icon></div>`}
             <div class="cast-name">${e.name}</div>
-            ${e.character?a`<div class="cast-character">${e.character}</div>`:d}
+            ${e.character?a`<div class="cast-character">${e.character}</div>`:l}
           </div>
         `)}
       </div>
@@ -289,12 +282,12 @@ var jt=Object.defineProperty;var It=(o,t,e)=>t in o?jt(o,t,{enumerable:!0,config
           <div class="dialog-topbar">
             ${t.item_id?a`
               <button class="dialog-btn" title="Remove from watchlist" @click=${()=>this._removeItem(t.item_id)}><ha-icon icon="mdi:delete-outline"></ha-icon></button>
-            `:d}
+            `:l}
             <button class="dialog-btn" title="Close" @click=${()=>this._closeDetail()}>✕</button>
           </div>
 
           <div class="hero">
-            ${t.backdrop_path||t.poster_path?a`<img class="hero-img ${t.backdrop_path?"":"img-blur"}" src="${t.backdrop_path||t.poster_path}" alt="" />`:d}
+            ${t.backdrop_path||t.poster_path?a`<img class="hero-img ${t.backdrop_path?"":"img-blur"}" src="${t.backdrop_path||t.poster_path}" alt="" />`:l}
             <div class="hero-fade"></div>
             <div class="hero-caption">
               ${this._renderTitleArt(t,"hero-logo")}
@@ -302,36 +295,36 @@ var jt=Object.defineProperty;var It=(o,t,e)=>t in o?jt(o,t,{enumerable:!0,config
               ${t.trailer_url?a`
                 <a class="action action-light" href="${t.trailer_url}" target="_blank" rel="noopener">
                   <ha-icon icon="mdi:play"></ha-icon> Trailer
-                </a>`:d}
+                </a>`:l}
             </div>
           </div>
 
           <div class="dialog-content">
             ${t.poster_path&&t.backdrop_path?a`
               <div class="dialog-left"><img class="dialog-poster" src="${t.poster_path}" alt="${t.title}" /></div>
-            `:d}
+            `:l}
             <div class="dialog-right">
-              ${t.tagline?a`<p class="tagline">${t.tagline}</p>`:d}
+              ${t.tagline?a`<p class="tagline">${t.tagline}</p>`:l}
               <p class="dialog-overview">${t.overview}</p>
-              ${t.media_type==="tv"?this._renderEpisodeCards(t):d}
+              ${t.media_type==="tv"?this._renderEpisodeCards(t):l}
 
               ${t.status==="suggested"?a`
                 <div class="suggestion-box">
-                  ${t.suggestion?.reason?a`<div><strong>Why it's here:</strong> ${t.suggestion.reason}</div>`:d}
+                  ${t.suggestion?.reason?a`<div><strong>Why it's here:</strong> ${t.suggestion.reason}</div>`:l}
                   ${this._dismissing===t.item_id?this._renderDismissChooser(t):a`<div class="suggestion-actions">
                         <button class="action action-primary" @click=${()=>this._addSuggestion(t)}>
-                          <ha-icon icon="mdi:playlist-plus"></ha-icon> Add to Up Next
+                          <ha-icon icon="mdi:playlist-plus"></ha-icon> Add to Queue
                         </button>
                         <button class="action" @click=${()=>this._dismissing=t.item_id}>
                           <ha-icon icon="mdi:thumb-down-outline"></ha-icon> Not for us
                         </button>
                       </div>`}
                 </div>
-              `:d}
+              `:l}
 
               ${t.item_id?this._renderItemControls(t):this._renderPreviewActions(t)}
 
-              ${t.cast?.length?this._renderCast(t):d}
+              ${t.cast?.length?this._renderCast(t):l}
 
               ${t.watch_providers&&Object.keys(t.watch_providers).length>0?a`
                 <div class="section-label">Where to Watch</div>
@@ -343,7 +336,7 @@ var jt=Object.defineProperty;var It=(o,t,e)=>t in o?jt(o,t,{enumerable:!0,config
                         <img class="provider-logo" src="https://image.tmdb.org/t/p/original${e.logo_path}" title="${e.provider_name}" alt="${e.provider_name}" />
                       `)}
                     </div>
-                  `:d}
+                  `:l}
                   ${t.watch_providers.rent?.length?a`
                     <div class="provider-row">
                       <span class="provider-type">Rent</span>
@@ -351,7 +344,7 @@ var jt=Object.defineProperty;var It=(o,t,e)=>t in o?jt(o,t,{enumerable:!0,config
                         <img class="provider-logo" src="https://image.tmdb.org/t/p/original${e.logo_path}" title="${e.provider_name}" alt="${e.provider_name}" />
                       `)}
                     </div>
-                  `:d}
+                  `:l}
                   ${t.watch_providers.buy?.length?a`
                     <div class="provider-row">
                       <span class="provider-type">Buy</span>
@@ -359,15 +352,15 @@ var jt=Object.defineProperty;var It=(o,t,e)=>t in o?jt(o,t,{enumerable:!0,config
                         <img class="provider-logo" src="https://image.tmdb.org/t/p/original${e.logo_path}" title="${e.provider_name}" alt="${e.provider_name}" />
                       `)}
                     </div>
-                  `:d}
+                  `:l}
                 </div>
-              `:d}
+              `:l}
 
             </div>
           </div>
         </div>
       </div>
-    `}};N(W,"properties",{_hass:{state:!0},_config:{state:!0},_items:{state:!0},_detail:{state:!0},_editingProgress:{state:!0},_dismissing:{state:!0},_toast:{state:!0},_modal:{state:!0},_libraryFilter:{state:!0},_previewLoading:{state:!0},_searchQuery:{state:!0},_searchType:{state:!0},_searchResults:{state:!0},_searching:{state:!0},_adding:{state:!0}}),N(W,"styles",V`
+    `}};R(q,"properties",{_hass:{state:!0},_config:{state:!0},_items:{state:!0},_detail:{state:!0},_editingProgress:{state:!0},_dismissing:{state:!0},_toast:{state:!0},_modal:{state:!0},_libraryFilter:{state:!0},_previewLoading:{state:!0},_searchQuery:{state:!0},_searchType:{state:!0},_searchResults:{state:!0},_searching:{state:!0},_adding:{state:!0}}),R(q,"styles",Q`
     /* Controls follow HA's tile card features: borderless, tinted,
        42px tall with 12px corners (themes can override both). */
     :host {
@@ -393,10 +386,7 @@ var jt=Object.defineProperty;var It=(o,t,e)=>t in o?jt(o,t,{enumerable:!0,config
     .icon-btn:hover { background: var(--polr-control-bg); color: var(--primary-text-color); }
     .group-label { padding: 4px 16px 8px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--secondary-text-color); }
     .poster-row + .group-label { padding-top: 8px; }
-    .soon-list { display: flex; flex-direction: column; padding: 0 16px 14px; }
-    .soon-row { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; background: none; border: 0; border-top: 1px solid var(--divider-color); padding: 10px 0; cursor: pointer; text-align: left; color: var(--primary-text-color); font-size: 0.95rem; }
-    .soon-row:first-child { border-top: 0; }
-    .soon-when { color: var(--secondary-text-color); font-size: 0.82rem; white-space: nowrap; }
+    .group-note { padding: 0 16px 14px; font-size: 0.85rem; color: var(--secondary-text-color); }
     .icon-btn-badged { position: relative; }
     .icon-badge { position: absolute; top: 4px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 8px; background: var(--primary-color); color: var(--text-primary-color, #fff); font-size: 0.65rem; font-weight: 600; line-height: 16px; text-align: center; }
     .suggestion-list-modal { padding: 0; }
@@ -645,17 +635,17 @@ var jt=Object.defineProperty;var It=(o,t,e)=>t in o?jt(o,t,{enumerable:!0,config
       .hero-logo.title-logo { max-height: 80px; max-width: 70%; }
       .wide-row { grid-template-columns: 1fr; }
     }
-  `);var B=class extends y{setConfig(t){this._config=t}_valueChanged(t){let e=t.target.dataset.field,s=t.target.value;this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:{...this._config,[e]:s}}}))}render(){return this._config?a`
+  `);var B=class extends ${setConfig(t){this._config=t}_valueChanged(t){let e=t.target.dataset.field,s=t.target.value;this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:{...this._config,[e]:s}}}))}render(){return this._config?a`
       <div class="editor">
         <label>Title
           <input type="text" data-field="title" .value=${this._config.title||""} @change=${this._valueChanged} />
         </label>
       </div>
-    `:d}};N(B,"properties",{hass:{type:Object},_config:{state:!0}}),N(B,"styles",V`
+    `:l}};R(B,"properties",{hass:{type:Object},_config:{state:!0}}),R(B,"styles",Q`
     .editor { display: flex; flex-direction: column; gap: 10px; padding: 8px; }
     label { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; }
     input { padding: 6px; border-radius: 4px; border: 1px solid var(--divider-color, #ccc); background: transparent; color: inherit; }
-  `);customElements.get("polr-tmdb-card")||(customElements.define("polr-tmdb-card",W),customElements.define("polr-tmdb-card-editor",B),window.customCards=window.customCards||[],window.customCards.push({type:"polr-tmdb-card",name:"TMDB Shows & Movies",description:"What to watch tonight, and what to try next.",preview:!1}));
+  `);customElements.get("polr-tmdb-card")||(customElements.define("polr-tmdb-card",q),customElements.define("polr-tmdb-card-editor",B),window.customCards=window.customCards||[],window.customCards.push({type:"polr-tmdb-card",name:"TMDB Shows & Movies",description:"What to watch tonight, and what to try next.",preview:!1}));
 /*! Bundled license information:
 
 @lit/reactive-element/css-tag.js:

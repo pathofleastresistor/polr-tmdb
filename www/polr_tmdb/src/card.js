@@ -8,7 +8,7 @@ function fmtDate(dateStr) {
 }
 
 const STATUS_LABELS = {
-  want_to_watch: "Up Next",
+  want_to_watch: "Queue",
   watching: "Watching",
   watched: "Watched",
   paused: "Watching", // Paused is retired in the UI; old paused items read as Watching
@@ -16,7 +16,9 @@ const STATUS_LABELS = {
   dismissed: "Not for us",
 };
 
-const ALL_SECTIONS = ["new", "soon", "upnext", "suggested"];
+const ALL_SECTIONS = ["watching", "queue", "suggested"];
+// Older configs named the sections new / soon / upnext.
+const SECTION_ALIASES = { new: "watching", soon: "watching", upnext: "queue" };
 
 // Quick reasons offered when passing on a suggestion. They feed back into
 // whatever makes the suggestions, so they're phrased as taste, not ratings.
@@ -88,7 +90,8 @@ class TmdbShowsCard extends LitElement {
   }
 
   setConfig(config) {
-    const sections = (config.sections || ALL_SECTIONS).filter((s) => ALL_SECTIONS.includes(s));
+    const sections = [...new Set((config.sections || ALL_SECTIONS).map((s) => SECTION_ALIASES[s] || s))]
+      .filter((s) => ALL_SECTIONS.includes(s));
     if (!sections.length) throw new Error("sections must include at least one of: " + ALL_SECTIONS.join(", "));
     const tvs = (config.tvs || []).map((tv) => (typeof tv === "string" ? { entity: tv } : tv));
     for (const tv of tvs) {
@@ -193,7 +196,7 @@ class TmdbShowsCard extends LitElement {
   }
 
   _addSuggestion(item) {
-    this._callService("update_status", { item_id: item.item_id, status: "want_to_watch" }, `Added ${item.title} to Up Next`);
+    this._callService("update_status", { item_id: item.item_id, status: "want_to_watch" }, `Added ${item.title} to your Queue`);
     if (this._detail?.item_id === item.item_id) this._detail = { ...item, status: "want_to_watch" };
   }
 
@@ -350,7 +353,7 @@ class TmdbShowsCard extends LitElement {
         type: "polr_tmdb/add", tmdb_id: title.tmdb_id, media_type: title.media_type, status,
       });
       await this._loadItems();
-      this._showToast(`Added ${title.title} to ${status === "watching" ? "Watching" : "Up Next"}`);
+      this._showToast(`Added ${title.title} to ${status === "watching" ? "Watching" : "your Queue"}`);
       if (this._detail && !this._detail.item_id && this._sameTitle(this._detail, title)) this._detail = item;
     } catch (e) {
       console.error("polr-tmdb-card: add failed", e);
@@ -373,10 +376,8 @@ class TmdbShowsCard extends LitElement {
     const items = filter === "all"
       ? this._items.filter((i) => i.status !== "dismissed")
       : filter === "watching"
-        ? this._items.filter((i) => this._isWatching(i) && !this._isWaiting(i))
-        : filter === "waiting"
-          ? this._items.filter((i) => this._isWaiting(i))
-          : this._items.filter((i) => i.status === filter);
+        ? this._items.filter((i) => this._isWatching(i))
+        : this._items.filter((i) => i.status === filter);
     return [...items].sort((a, b) => a.title.localeCompare(b.title));
   }
 
@@ -399,15 +400,18 @@ class TmdbShowsCard extends LitElement {
     return item.media_type === "tv" && this._isWatching(item) && this._isCaughtUp(item) && !item.show_ended;
   }
 
-  // "Returns Oct 21" when TMDB has a date, otherwise "On break".
+  // Under a poster for a show you're waiting on: "Returns Wednesday",
+  // "Returns Oct 21", or "On break" when TMDB has no date yet.
   _returnLabel(item) {
     const d = item.next_episode_to_air?.air_date;
     if (!d) return "On break";
-    return `Returns ${new Date(d + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+    const days = this._daysUntil(d);
+    if (days !== null && days <= 1) return "Returns tomorrow";
+    return `Returns ${this._whenLabel(d)}`;
   }
 
   _hasNewEpisode(item) {
-    if (item.status === "watched") return false;
+    if (!this._isWatching(item)) return false;
     if (item.has_new_episode) return true;
     const next = item.next_episode_to_air;
     if (!next?.air_date) return false;
@@ -423,34 +427,20 @@ class TmdbShowsCard extends LitElement {
     return Math.ceil(diff / 86400000);
   }
 
-  // "Soon": watching items with a next episode airing within 14 days (but not already aired)
-  _isComingSoon(item) {
-    if (item.media_type !== "tv") return false;
-    if (!this._isWatching(item)) return false;
-    if (this._hasNewEpisode(item)) return false; // already in "new"
-    const next = item.next_episode_to_air;
-    if (!next?.air_date) return false;
-    const days = this._daysUntil(next.air_date);
-    return days !== null && days > 0 && days <= 14;
-  }
-
-  get _newItems() {
+  // What you're actually following: shows with an episode to watch first,
+  // then shows you're waiting on, soonest return first.
+  get _watchingItems() {
+    const rank = (i) => (this._hasNewEpisode(i) ? 0 : 1);
+    const when = (i) => i.next_episode_to_air?.air_date || "9999";
     return this._items
-      .filter((i) => ["watching", "paused"].includes(i.status) && this._hasNewEpisode(i))
-      .sort((a, b) => a.title.localeCompare(b.title));
+      .filter((i) => this._isWatching(i))
+      .sort((a, b) => rank(a) - rank(b)
+        || (rank(a) === 1 ? when(a).localeCompare(when(b)) : 0)
+        || a.title.localeCompare(b.title));
   }
 
-  get _soonItems() {
-    return this._items
-      .filter((i) => this._isComingSoon(i))
-      .sort((a, b) => {
-        const da = a.next_episode_to_air?.air_date || "9999";
-        const db = b.next_episode_to_air?.air_date || "9999";
-        return da.localeCompare(db);
-      });
-  }
-
-  get _upNextItems() {
+  // Not started, or started and parked: anything you'd get to someday.
+  get _queueItems() {
     return this._items
       .filter((i) => i.status === "want_to_watch")
       .sort((a, b) => a.title.localeCompare(b.title));
@@ -466,19 +456,18 @@ class TmdbShowsCard extends LitElement {
   // Render
   // ---------------------------------------------------------------------------
 
-  // One view, no tabs: new episodes first, then what's queued, then a quiet
-  // "coming up" list. Suggestions are an inbox behind a header icon, unless
-  // the card is set up to be about suggestions (default_section: suggested).
+  // One view, no tabs: what you're watching, then your queue. Suggestions are
+  // an inbox behind a header icon, unless the card is set up to be about
+  // suggestions (default_section: suggested).
   render() {
     if (!this._config) return nothing;
     const has = (id) => this._config.sections.includes(id);
-    const fresh = has("new") ? this._newItems : [];
-    const queued = has("upnext") ? this._upNextItems : [];
-    const soon = has("soon") ? this._soonItems : [];
+    const watching = has("watching") ? this._watchingItems : [];
+    const queue = has("queue") ? this._queueItems : [];
     const suggested = has("suggested") ? this._suggestedItems : [];
     const inlineSuggestions = has("suggested")
-      && (this._config.default_section === "suggested" || !(has("new") || has("upnext") || has("soon")));
-    const nothingToShow = !fresh.length && !queued.length && !soon.length && !(inlineSuggestions && suggested.length);
+      && (this._config.default_section === "suggested" || !(has("watching") || has("queue")));
+    const both = has("watching") && has("queue");
 
     return html`
       <ha-card>
@@ -503,25 +492,19 @@ class TmdbShowsCard extends LitElement {
         ${inlineSuggestions && suggested.length ? html`
           <div class="suggestion-list">${repeat(suggested, (i) => i.item_id, (item) => this._renderSuggestion(item))}</div>` : nothing}
 
-        ${fresh.length ? html`
-          ${queued.length || soon.length ? html`<div class="group-label">New episodes</div>` : nothing}
-          <div class="poster-row">${repeat(fresh, (i) => i.item_id, (item) => this._renderPoster(item))}</div>` : nothing}
+        ${has("watching") ? html`
+          ${both ? html`<div class="group-label">Watching</div>` : nothing}
+          ${watching.length
+            ? html`<div class="poster-row">${repeat(watching, (i) => i.item_id, (item) => this._renderPoster(item))}</div>`
+            : both && queue.length
+              ? html`<div class="group-note">Nothing in progress. Start something from your queue.</div>`
+              : nothing}` : nothing}
 
-        ${queued.length ? html`
-          ${fresh.length || soon.length ? html`<div class="group-label">Up Next</div>` : nothing}
-          <div class="poster-row">${repeat(queued, (i) => i.item_id, (item) => this._renderPoster(item))}</div>` : nothing}
+        ${has("queue") && queue.length ? html`
+          ${both ? html`<div class="group-label">Queue</div>` : nothing}
+          <div class="poster-row">${repeat(queue, (i) => i.item_id, (item) => this._renderPoster(item))}</div>` : nothing}
 
-        ${soon.length ? html`
-          <div class="group-label">Coming up</div>
-          <div class="soon-list">
-            ${repeat(soon, (i) => i.item_id, (item) => html`
-              <button class="soon-row" @click=${() => (this._detail = item)}>
-                <span class="soon-title">${item.title}</span>
-                <span class="soon-when">${this._epLabelShort(item.next_episode_to_air)} · ${this._whenLabel(item.next_episode_to_air?.air_date)}</span>
-              </button>`)}
-          </div>` : nothing}
-
-        ${nothingToShow ? this._renderEmpty() : nothing}
+        ${!watching.length && !queue.length && !(inlineSuggestions && suggested.length) ? this._renderEmpty() : nothing}
 
         ${this._toast ? html`<div class="toast">${this._toast}</div>` : nothing}
       </ha-card>
@@ -533,16 +516,9 @@ class TmdbShowsCard extends LitElement {
     `;
   }
 
-  _epLabelShort(ep) {
-    return ep ? `S${ep.season_number}E${ep.episode_number}` : "";
-  }
-
   _whenLabel(dateStr) {
-    const days = this._daysUntil(dateStr);
-    if (days === null) return "";
-    if (days <= 1) return "Tomorrow";
     const d = new Date(dateStr + "T12:00:00");
-    return days < 7
+    return this._daysUntil(dateStr) < 7
       ? d.toLocaleDateString(undefined, { weekday: "long" })
       : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   }
@@ -604,7 +580,7 @@ class TmdbShowsCard extends LitElement {
     const body = this._searching && !results?.length
       ? html`<div class="modal-note">Searching…</div>`
       : results === null
-        ? html`<div class="modal-note">Find a movie or show. Tap it for details, or + to add it to Up Next.</div>`
+        ? html`<div class="modal-note">Find a movie or show. Tap it for details, or + to add it to your Queue.</div>`
         : results.length === 0
           ? html`<div class="modal-note">No matches for “${this._searchQuery.trim()}”.</div>`
           : html`<div class="modal-grid">${repeat(results, (r) => `${r.media_type}:${r.tmdb_id}`, (r) => this._renderSearchTile(r))}</div>`;
@@ -622,7 +598,7 @@ class TmdbShowsCard extends LitElement {
           : html`<div class="poster-fallback">${result.media_type === "tv" ? "📺" : "🎬"}</div>`}
         ${item
           ? html`<span class="status-badge" style="background:${STATUS_COLORS[item.status] || "#6d6d6d"}">${STATUS_LABELS[item.status] || item.status}</span>`
-          : html`<button class="quick-add" title="Add to Up Next" ?disabled=${adding}
+          : html`<button class="quick-add" title="Add to Queue" ?disabled=${adding}
               @click=${(e) => { e.stopPropagation(); this._addTitle(result); }}>
               <ha-icon icon="${adding ? "mdi:loading" : "mdi:plus"}"></ha-icon>
             </button>`}
@@ -634,7 +610,7 @@ class TmdbShowsCard extends LitElement {
 
   _renderLibraryModal() {
     const filters = [
-      ["all", "All"], ["watching", "Watching"], ["waiting", "Waiting"], ["want_to_watch", "Up Next"], ["suggested", "Suggested"],
+      ["all", "All"], ["watching", "Watching"], ["want_to_watch", "Queue"], ["suggested", "Suggested"],
       ["watched", "Watched"], ["dismissed", "Not for us"],
     ];
     const items = this._libraryItems(this._libraryFilter);
@@ -666,9 +642,9 @@ class TmdbShowsCard extends LitElement {
   _renderEmpty() {
     return html`
       <div class="empty-state">
-        <ha-icon class="empty-icon" icon="mdi:check-circle-outline"></ha-icon>
-        <div class="empty-heading">All caught up!</div>
-        <div class="empty-sub">Nothing new to watch and nothing in your queue.</div>
+        <ha-icon class="empty-icon" icon="mdi:playlist-play"></ha-icon>
+        <div class="empty-heading">Nothing here yet</div>
+        <div class="empty-sub">Add a show or movie to start your queue.</div>
         ${this._config.search ? html`
           <button class="action" @click=${() => this._openModal("search")}>
             <ha-icon icon="mdi:magnify"></ha-icon> Find something
@@ -688,10 +664,18 @@ class TmdbShowsCard extends LitElement {
     return ep ? `S${ep.season_number} · E${ep.episode_number}${ep.name ? ` · ${ep.name}` : ""}` : "";
   }
 
-  _renderPoster(item, showStatus = false) {
-    const next = item.next_episode_to_air;
-    const days = this._isComingSoon(item) && next?.air_date ? this._daysUntil(next.air_date) : null;
+  // One line under the poster for shows in motion: when a waiting show is
+  // back, or where a parked show was left.
+  _posterSub(item) {
+    if (this._isWaiting(item)) return this._returnLabel(item);
+    if (item.status === "want_to_watch" && item.current_season) {
+      return `Stopped at S${item.current_season}E${item.current_episode || 1}`;
+    }
+    return null;
+  }
 
+  _renderPoster(item, showStatus = false) {
+    const sub = this._posterSub(item);
     return html`
       <div class="poster" @click=${() => (this._detail = item)}>
         ${item.poster_path
@@ -700,17 +684,11 @@ class TmdbShowsCard extends LitElement {
 
         ${this._hasNewEpisode(item) ? html`<span class="new-badge">NEW</span>` : nothing}
         ${showStatus && this._libraryFilter === "all" ? html`
-          ${this._isWaiting(item)
-            ? html`<span class="status-badge" style="background:#546e7a">Waiting</span>`
-            : html`<span class="status-badge" style="background:${STATUS_COLORS[item.status] || "#6d6d6d"}">${STATUS_LABELS[item.status] || item.status}</span>`}
-        ` : nothing}
-
-        ${days !== null ? html`
-          <span class="soon-badge">${days === 1 ? "Tomorrow" : `${days}d`}</span>
+          <span class="status-badge" style="background:${STATUS_COLORS[item.status] || "#6d6d6d"}">${STATUS_LABELS[item.status] || item.status}</span>
         ` : nothing}
 
         <div class="poster-title">${item.title}</div>
-        ${showStatus && this._isWaiting(item) ? html`<div class="poster-sub">${this._returnLabel(item)}</div>` : nothing}
+        ${sub ? html`<div class="poster-sub">${sub}</div>` : nothing}
       </div>
     `;
   }
@@ -846,10 +824,11 @@ class TmdbShowsCard extends LitElement {
     const editing = this._editingProgress === item.item_id;
 
     let summary;
+    const parked = item.status === "want_to_watch";
     if (item.status === "watched") summary = "Finished";
     else if (!s) summary = "Not started";
-    else summary = `You're at S${s} · E${e}${here?.name ? ` · ${here.name}` : ""}`;
-    const pill = item.status === "watched" ? null
+    else summary = `${parked ? "Stopped at" : "You're at"} S${s} · E${e}${here?.name ? ` · ${here.name}` : ""}`;
+    const pill = item.status === "watched" || parked ? null
       : this._hasNewEpisode(item) && s ? "New episode"
       : caughtUp ? (this._isWaiting(item) ? `Caught up · ${this._returnLabel(item)}` : "Caught up") : null;
 
@@ -871,6 +850,15 @@ class TmdbShowsCard extends LitElement {
             await this._updateItem(item.item_id, fields);
             this._detail = { ...item, ...fields };
           }}><ha-icon icon="mdi:replay"></ha-icon> Watch again</button>
+        ` : parked ? html`
+          <button class="action action-primary" @click=${async () => {
+            await this._updateItem(item.item_id, { status: "watching" });
+            this._detail = { ...item, status: "watching" };
+          }}><ha-icon icon="mdi:play-circle-outline"></ha-icon> ${s ? "Resume watching" : "Start watching"}</button>
+          ${!caughtUp && item.last_episode_to_air ? html`
+            <button class="action" @click=${() => this._setProgress(item, item.last_episode_to_air.season_number, item.last_episode_to_air.episode_number)}>
+              <ha-icon icon="mdi:check-all"></ha-icon> Already seen it all
+            </button>` : nothing}
         ` : html`
           ${next !== null ? html`
             <button class="action action-primary" ?disabled=${next === undefined}
@@ -881,6 +869,10 @@ class TmdbShowsCard extends LitElement {
             <button class="action" @click=${() => this._setProgress(item, item.last_episode_to_air.season_number, item.last_episode_to_air.episode_number)}>
               <ha-icon icon="mdi:check-all"></ha-icon> All caught up
             </button>` : nothing}
+          <button class="link-btn" @click=${async () => {
+            await this._updateItem(item.item_id, { status: "want_to_watch" });
+            this._detail = { ...item, status: "want_to_watch" };
+          }}>Move to queue</button>
         `}
         <button class="link-btn" @click=${() => (this._editingProgress = editing ? null : item.item_id)}>
           ${editing ? "Done" : "Change…"}
@@ -925,7 +917,7 @@ class TmdbShowsCard extends LitElement {
     `;
   }
 
-  // Movies: Up Next or Watched, nothing in between.
+  // Movies: Queue or Watched, nothing in between.
   _renderMovieStatus(item) {
     const watched = item.status === "watched";
     const status = watched ? "want_to_watch" : "watched";
@@ -966,7 +958,7 @@ class TmdbShowsCard extends LitElement {
     return html`
       <div class="preview-actions">
         <button class="action action-primary" ?disabled=${adding} @click=${() => this._addTitle(item, "want_to_watch")}>
-          <ha-icon icon="${adding ? "mdi:loading" : "mdi:playlist-plus"}"></ha-icon> Add to Up Next
+          <ha-icon icon="${adding ? "mdi:loading" : "mdi:playlist-plus"}"></ha-icon> Add to Queue
         </button>
       </div>
       ${this._previewLoading ? html`<div class="preview-loading">Loading details…</div>` : nothing}
@@ -1069,7 +1061,7 @@ class TmdbShowsCard extends LitElement {
                     ? this._renderDismissChooser(item)
                     : html`<div class="suggestion-actions">
                         <button class="action action-primary" @click=${() => this._addSuggestion(item)}>
-                          <ha-icon icon="mdi:playlist-plus"></ha-icon> Add to Up Next
+                          <ha-icon icon="mdi:playlist-plus"></ha-icon> Add to Queue
                         </button>
                         <button class="action" @click=${() => (this._dismissing = item.item_id)}>
                           <ha-icon icon="mdi:thumb-down-outline"></ha-icon> Not for us
@@ -1149,10 +1141,7 @@ class TmdbShowsCard extends LitElement {
     .icon-btn:hover { background: var(--polr-control-bg); color: var(--primary-text-color); }
     .group-label { padding: 4px 16px 8px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--secondary-text-color); }
     .poster-row + .group-label { padding-top: 8px; }
-    .soon-list { display: flex; flex-direction: column; padding: 0 16px 14px; }
-    .soon-row { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; background: none; border: 0; border-top: 1px solid var(--divider-color); padding: 10px 0; cursor: pointer; text-align: left; color: var(--primary-text-color); font-size: 0.95rem; }
-    .soon-row:first-child { border-top: 0; }
-    .soon-when { color: var(--secondary-text-color); font-size: 0.82rem; white-space: nowrap; }
+    .group-note { padding: 0 16px 14px; font-size: 0.85rem; color: var(--secondary-text-color); }
     .icon-btn-badged { position: relative; }
     .icon-badge { position: absolute; top: 4px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 8px; background: var(--primary-color); color: var(--text-primary-color, #fff); font-size: 0.65rem; font-weight: 600; line-height: 16px; text-align: center; }
     .suggestion-list-modal { padding: 0; }

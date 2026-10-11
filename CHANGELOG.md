@@ -2,24 +2,31 @@
 
 ## [1.4.0] - 2026-10-10
 
+A much simpler card. Two things to track: what you're watching, and your queue.
+
 ### Changed
-- Simpler watch states: the four-way status picker is replaced by one button
-  for the next step (Start watching, Mark watched, Watch again), plus
-  "Back to Up Next" for shows you're watching. Movies skip Watching
-- Paused is gone from the card. Existing paused items show as Watching; the
-  stored data and the `update_status` service are unchanged
-- The card is one view instead of four tabs: New episodes, then Up Next, then
-  a short "Coming up" list. Suggestions moved to a 💡 icon in the header (with
-  a count) that opens a dialog. `default_section: suggested` keeps them on the
-  card itself
-- The detail panel tracks where you are: one "Watched S6E1" button, "All
-  caught up", and a hidden "Change…" for exact picks. Status follows from
-  your position (an ended show you've finished becomes Watched). Notes are gone
-- Library has a **Waiting** filter for shows you're caught up on that haven't
-  come back yet, with their return date (or "On break")
-- New `show_ended` field, filled from TMDB on the next refresh
-- "Want to Watch" is now "Up Next" everywhere, and search previews have a
-  single "Add to Up Next" button
+- The card is one view instead of four tabs: **Watching** (shows with a new
+  episode first, then shows you're caught up on with when they return), then
+  **Queue** (not started, or started and parked). Suggestions moved to a 💡
+  icon in the header with a count; `default_section: suggested` keeps them on
+  the card. Old section names `new`/`soon`/`upnext` still work
+- "Want to Watch" / "Up Next" is now **Queue** everywhere. Coming Soon is gone;
+  a returning show shows its date under the poster
+- The detail panel tracks where you are instead of a status picker: one
+  "Watched S6E1" button, "All caught up", and a hidden "Change…" for exact
+  picks. Status follows from your position: a finished show that has ended
+  becomes Watched, and "Move to queue" parks a show you're not into (it
+  remembers where you stopped, and "Resume watching" brings it back)
+- Paused is gone from the card (old paused items show as Watching), as are
+  Notes. The rating shows once something is Watched
+- Movies are just Queue or Watched
+- Library chips: Watching, Queue, Suggested, Watched, Not for us
+
+### Added
+- `show_ended` field, filled from TMDB on the next refresh
+
+### Fixed
+- Clearing the season/episode position (Watch again, picking "—") now saves
 
 ## [1.3.1] - 2026-09-26
 
