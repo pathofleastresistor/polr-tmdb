@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.4.2] - 2026-10-11
+
+### Added
+- Shows you're watching now have a line under the poster, like the "Returns
+  Thursday" line on shows that are on a break: **New episodes Wednesdays** for
+  a show airing weekly, **Next episode Oct 28** after a mid-season gap, and
+  **6 episodes left** or **2 more seasons** for a show whose episodes are
+  already out
+
 ## [1.4.1] - 2026-10-11
 
 ### Fixed
