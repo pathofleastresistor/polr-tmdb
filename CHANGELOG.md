@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.4.0] - 2026-10-10
+
+### Changed
+- Simpler watch states: the four-way status picker is replaced by one button
+  for the next step (Start watching, Mark watched, Watch again), plus
+  "Back to Up Next" for shows you're watching. Movies skip Watching
+- Paused is gone from the card. Existing paused items show as Watching; the
+  stored data and the `update_status` service are unchanged
+- "Want to Watch" is now "Up Next" everywhere, and search previews have a
+  single "Add to Up Next" button
+
 ## [1.3.1] - 2026-09-26
 
 ### Fixed

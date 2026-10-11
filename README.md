@@ -9,7 +9,7 @@ A custom Home Assistant integration and Lovelace card for managing your househol
 
 ## Features
 
-- Track movies and TV shows with statuses: Want to Watch, Watching, Watched, Paused
+- Track movies and TV shows with a simple lifecycle: Up Next, Watching, Watched (movies skip Watching)
 - Suggestions with reasons, and a remembered "not for us" list
 - Watch links that open a title in its streaming app on a Google TV
 - TMDB artwork and metadata auto-fetched: posters, backdrops, title logos, episode stills, cast photos, ratings, genres, trailers, network info
@@ -54,7 +54,7 @@ type: custom:polr-tmdb-card
 Tap the 🔍 **Search** icon on the card and type a title:
 - Tap **+** on a poster to add it to Up Next in one go
 - Tap the poster itself for a preview (overview, genres, trailer, where to
-  watch), then **Add to Up Next** or **Watching now**
+  watch), then **Add to Up Next**
 - Titles already on your list show their status; tapping one opens it
 
 Or via HA services. `polr_tmdb.search` finds the TMDB ID (and tells you if the
@@ -89,7 +89,7 @@ The card is the whole UI. At a glance it shows up to four sections:
 |---|---|
 | **New** | TV shows with episodes aired beyond your current progress |
 | **Coming Soon** | Episodes airing within the next 14 days |
-| **Up Next** | Everything in your Want to Watch list |
+| **Up Next** | Everything in your Up Next list |
 | **Suggested** | Titles proposed with a reason, waiting for Add / Not for us |
 
 Bigger tasks open as dialogs (full screen on phones), from the header icons:
@@ -97,7 +97,7 @@ Bigger tasks open as dialogs (full screen on phones), from the header icons:
 | Dialog | What it's for |
 |---|---|
 | 🔍 **Search** | Find a movie or show on TMDB, preview it, and add it |
-| 📚 **Library** | Your whole list, filtered by status (Watching, Watched, Paused, Not for us…) |
+| 📚 **Library** | Your whole list, filtered by status (Watching, Up Next, Watched, Not for us…) |
 | **Details** | Opens from any poster: status, season/episode progress, rating, notes, where to watch |
 
 Press **Esc** or tap outside a dialog to close it.

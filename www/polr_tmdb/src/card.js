@@ -8,10 +8,10 @@ function fmtDate(dateStr) {
 }
 
 const STATUS_LABELS = {
-  want_to_watch: "Want to Watch",
+  want_to_watch: "Up Next",
   watching: "Watching",
   watched: "Watched",
-  paused: "Paused",
+  paused: "Watching", // Paused is retired in the UI; old paused items read as Watching
   suggested: "Suggested",
   dismissed: "Not for us",
 };
@@ -33,7 +33,7 @@ const STATUS_COLORS = {
   want_to_watch: "#6d6d6d",
   watching: "#1976d2",
   watched: "#2e7d32",
-  paused: "#e65100",
+  paused: "#1976d2",
   suggested: "#7b1fa2",
   dismissed: "#6d6d6d",
 };
@@ -365,7 +365,9 @@ class TmdbShowsCard extends LitElement {
     // "Not for us" titles only show under their own filter.
     const items = filter === "all"
       ? this._items.filter((i) => i.status !== "dismissed")
-      : this._items.filter((i) => i.status === filter);
+      : filter === "watching"
+        ? this._items.filter((i) => this._isWatching(i))
+        : this._items.filter((i) => i.status === filter);
     return [...items].sort((a, b) => a.title.localeCompare(b.title));
   }
 
@@ -376,6 +378,11 @@ class TmdbShowsCard extends LitElement {
   _today() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  }
+
+  // Paused is retired in the UI: a paused item counts as Watching.
+  _isWatching(item) {
+    return item.status === "watching" || item.status === "paused";
   }
 
   _hasNewEpisode(item) {
@@ -398,7 +405,7 @@ class TmdbShowsCard extends LitElement {
   // "Soon": watching items with a next episode airing within 14 days (but not already aired)
   _isComingSoon(item) {
     if (item.media_type !== "tv") return false;
-    if (item.status !== "watching") return false;
+    if (!this._isWatching(item)) return false;
     if (this._hasNewEpisode(item)) return false; // already in "new"
     const next = item.next_episode_to_air;
     if (!next?.air_date) return false;
@@ -566,8 +573,8 @@ class TmdbShowsCard extends LitElement {
 
   _renderLibraryModal() {
     const filters = [
-      ["all", "All"], ["watching", "Watching"], ["want_to_watch", "Want to Watch"], ["suggested", "Suggested"],
-      ["paused", "Paused"], ["watched", "Watched"], ["dismissed", "Not for us"],
+      ["all", "All"], ["watching", "Watching"], ["want_to_watch", "Up Next"], ["suggested", "Suggested"],
+      ["watched", "Watched"], ["dismissed", "Not for us"],
     ];
     const items = this._libraryItems(this._libraryFilter);
     const toolbar = html`
@@ -823,17 +830,44 @@ class TmdbShowsCard extends LitElement {
     `;
   }
 
+  // One contextual button for the next step, instead of a four-way picker.
+  // Movies skip "Watching"; Paused is retired (old paused items act as Watching).
+  _renderStatusActions(item) {
+    if (["suggested", "dismissed"].includes(item.status)) return nothing;
+    const set = async (status) => {
+      await this._updateItem(item.item_id, { status });
+      this._detail = { ...item, status };
+    };
+    const isTv = item.media_type === "tv";
+    let primary, back = null;
+    if (item.status === "watched") {
+      primary = { label: "Watch again", icon: "mdi:replay", status: isTv ? "watching" : "want_to_watch" };
+    } else if (this._isWatching(item)) {
+      primary = { label: "Mark watched", icon: "mdi:check", status: "watched" };
+      back = { label: "Back to Up Next", icon: "mdi:playlist-plus", status: "want_to_watch" };
+    } else if (isTv) {
+      primary = { label: "Start watching", icon: "mdi:play-circle-outline", status: "watching" };
+    } else {
+      primary = { label: "Mark watched", icon: "mdi:check", status: "watched" };
+    }
+    return html`
+      <div class="preview-actions">
+        <button class="action action-primary" @click=${() => set(primary.status)}>
+          <ha-icon icon="${primary.icon}"></ha-icon> ${primary.label}
+        </button>
+        ${back ? html`<button class="action" @click=${() => set(back.status)}>
+          <ha-icon icon="${back.icon}"></ha-icon> ${back.label}
+        </button>` : nothing}
+      </div>
+    `;
+  }
+
   // Status, progress, rating and notes: only for titles on the list.
   _renderItemControls(item) {
     return html`
       ${this._renderTvButtons(item)}
 
-      <div class="section-label">Status</div>
-      ${this._renderSegmented(
-        ["want_to_watch", "watching", "watched", "paused"].map((s) => ({ id: s, label: STATUS_LABELS[s], color: STATUS_COLORS[s] })),
-        item.status,
-        async (s) => { await this._updateItem(item.item_id, { status: s }); this._detail = { ...item, status: s }; },
-      )}
+      ${this._renderStatusActions(item)}
 
       ${item.media_type === "tv" ? this._renderProgress(item) : nothing}
 
@@ -858,9 +892,6 @@ class TmdbShowsCard extends LitElement {
       <div class="preview-actions">
         <button class="action action-primary" ?disabled=${adding} @click=${() => this._addTitle(item, "want_to_watch")}>
           <ha-icon icon="${adding ? "mdi:loading" : "mdi:playlist-plus"}"></ha-icon> Add to Up Next
-        </button>
-        <button class="action" ?disabled=${adding} @click=${() => this._addTitle(item, "watching")}>
-          <ha-icon icon="mdi:play-circle-outline"></ha-icon> Watching now
         </button>
       </div>
       ${this._previewLoading ? html`<div class="preview-loading">Loading details…</div>` : nothing}
