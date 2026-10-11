@@ -476,7 +476,7 @@ class TmdbShowsCard extends LitElement {
           <div class="header-actions">
             ${has("suggested") && !inlineSuggestions ? html`
               <button class="icon-btn icon-btn-badged" title="Suggestions" aria-label="Suggestions" @click=${() => this._openModal("suggested")}>
-                <ha-icon icon="mdi:lightbulb-on-outline"></ha-icon>
+                <ha-icon icon="mdi:lightbulb-outline"></ha-icon>
                 ${suggested.length ? html`<span class="icon-badge">${suggested.length}</span>` : nothing}
               </button>` : nothing}
             ${this._config.search ? html`
@@ -1138,6 +1138,7 @@ class TmdbShowsCard extends LitElement {
       color: var(--secondary-text-color); display: flex; align-items: center; justify-content: center; --mdc-icon-size: 24px;
       transition: background-color 0.15s, color 0.15s;
     }
+    .icon-btn ha-icon { display: flex; align-items: center; justify-content: center; }
     .icon-btn:hover { background: var(--polr-control-bg); color: var(--primary-text-color); }
     .group-label { padding: 4px 16px 8px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--secondary-text-color); }
     .poster-row + .group-label { padding-top: 8px; }
